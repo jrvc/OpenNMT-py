@@ -11,6 +11,8 @@ import torch
 
 import onmt.opts as opts
 
+from collections import defaultdict
+
 from onmt.inputters.inputter import build_dataset_iter, lazily_load_dataset, \
     _load_fields, _collect_report_features
 from onmt.model_builder import build_model
@@ -82,49 +84,59 @@ def main(opt):
         checkpoint = None
         model_opt = opt
 
-    # Peek the first dataset to determine the data_type.
-    # (All datasets have the same data_type).
-    first_dataset = next(lazily_load_dataset("train", opt))
-    data_type = first_dataset.data_type
 
-    # Load fields generated from preprocess phase.
-    fields = _load_fields(first_dataset, data_type, opt, checkpoint)
+    # CHRIS: WORKING -- this is a for loop
+    # For each dataset, load fields generated from preprocess phase.
+    dataset_info = defaultdict(lambda: defaultdict())
+    train_iter_fcts = {}
+
+    for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
+        src_lang, tgt_lang = src_tgt_lang.split('-')
+        # Peek the first dataset to determine the data_type.
+        # (All datasets have the same data_type).
+        first_dataset = next(lazily_load_dataset("train", data_path))
+        data_type = first_dataset.data_type
+        fields = _load_fields(first_dataset, data_type, data_path, checkpoint)
 
     # Report src/tgt features.
+        src_features, tgt_features = _collect_report_features(fields)
+        for j, feat in enumerate(src_features):
+            logger.info(' * src feature %d size = %d'
+                        % (j, len(fields[feat].vocab)))
+        for j, feat in enumerate(tgt_features):
+            logger.info(' * tgt feature %d size = %d'
+                        % (j, len(fields[feat].vocab)))
 
-    src_features, tgt_features = _collect_report_features(fields)
-    for j, feat in enumerate(src_features):
-        logger.info(' * src feature %d size = %d'
-                    % (j, len(fields[feat].vocab)))
-    for j, feat in enumerate(tgt_features):
-        logger.info(' * tgt feature %d size = %d'
-                    % (j, len(fields[feat].vocab)))
+        # Build model.
+        model = build_model(model_opt, opt, fields, checkpoint)
+        n_params, enc, dec = _tally_parameters(model)
+        logger.info('encoder: %d' % enc)
+        logger.info('decoder: %d' % dec)
+        logger.info('* number of parameters: %d' % n_params)
+        _check_save_model_path(opt)
 
-    # Build model.
-    model = build_model(model_opt, opt, fields, checkpoint)
-    n_params, enc, dec = _tally_parameters(model)
-    logger.info('encoder: %d' % enc)
-    logger.info('decoder: %d' % dec)
-    logger.info('* number of parameters: %d' % n_params)
-    _check_save_model_path(opt)
+        # Build optimizer.
+        optim = build_optim(model, opt, checkpoint)
 
-    # Build optimizer.
-    optim = build_optim(model, opt, checkpoint)
+        # Build model saver
+        model_saver = build_model_saver(model_opt, opt, model, fields, optim)
 
-    # Build model saver
-    model_saver = build_model_saver(model_opt, opt, model, fields, optim)
+        trainer = build_trainer(
+            opt, model, fields, optim, data_type, model_saver=model_saver)
 
-    trainer = build_trainer(
-        opt, model, fields, optim, data_type, model_saver=model_saver)
+        # TODO: call this once for every user-specified dataset
+        def train_iter_fct(): return build_dataset_iter(
+            lazily_load_dataset("train", data_path), fields, opt)
 
-    def train_iter_fct(): return build_dataset_iter(
-        lazily_load_dataset("train", opt), fields, opt)
+        def valid_iter_fct(): return build_dataset_iter(
+            lazily_load_dataset("valid", data_path), fields, opt)
 
-    def valid_iter_fct(): return build_dataset_iter(
-        lazily_load_dataset("valid", opt), fields, opt)
+        # add this dataset iterator to the training iterators
+        train_iter_fcts = {(src_lang, tgt_lang): train_iter_fct}
 
-    # Do training.
-    trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
+    #trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
+    #              opt.valid_steps)
+    trainer.train(train_iter_fcts, valid_iter_fct, opt.train_steps,
                   opt.valid_steps)
 
     if opt.tensorboard:

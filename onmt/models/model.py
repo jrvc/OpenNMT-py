@@ -20,9 +20,9 @@ class MultiTaskModel(nn.Module):
         super(MultiTaskModel, self).__init__()
 
         # dummy
-        num_enc_dec = 3
+        num_enc_dec = 1
 
-        self.encoder_ids = {'en_{}'.format(i): i for i in range(num_enc_dec)}
+        self.encoder_ids = {'en': 0}
         self.encoders = nn.ModuleList([copy.deepcopy(encoder)
                                           for _ in range(num_enc_dec)])
 
@@ -31,7 +31,7 @@ class MultiTaskModel(nn.Module):
         # self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, src, tgt, lengths, dec_state=None):
+    def forward(self, src, tgt, src_task, tgt_task, lengths, dec_state=None):
         """Forward propagate a `src` and `tgt` pair for training.
         Possible initialized with a beginning decoder state.
 
@@ -54,9 +54,8 @@ class MultiTaskModel(nn.Module):
         """
         tgt = tgt[:-1]  # exclude last target from inputs
 
-        encoder = self.encoders[random.choice(
-            list(self.encoder_ids.values()))]
-        # import ipdb;ipdb.set_trace()
+        encoder = self.encoders[self.encoder_ids[src_task]]
+
         # decoder = random.choice(list(self.decoders.values()))
 
         enc_final, memory_bank = encoder(src, lengths)
