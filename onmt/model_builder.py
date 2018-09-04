@@ -196,7 +196,7 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
 
     # Build NMTModel(= encoder + decoder).
     device = torch.device("cuda" if gpu else "cpu")
-    model = onmt.models.NMTModel(encoder, decoder)
+    model = onmt.models.NMTModel(encoder, decoder, model_opt)
     model.model_type = model_opt.model_type
 
     # Build Generator.
