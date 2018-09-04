@@ -196,7 +196,10 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
 
     # Build NMTModel(= encoder + decoder).
     device = torch.device("cuda" if gpu else "cpu")
-    model = onmt.models.NMTModel(encoder, decoder)
+
+    # Chris: replace this line with model = onmt.models.MultiTaskModel
+    # model = onmt.models.NMTModel(encoder, decoder)
+    model = onmt.models.MultiTaskModel(encoder, decoder)
     model.model_type = model_opt.model_type
 
     # Build Generator.
@@ -232,12 +235,13 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
                 if p.dim() > 1:
                     xavier_uniform_(p)
 
-        if hasattr(model.encoder, 'embeddings'):
-            model.encoder.embeddings.load_pretrained_vectors(
-                model_opt.pre_word_vecs_enc, model_opt.fix_word_vecs_enc)
-        if hasattr(model.decoder, 'embeddings'):
-            model.decoder.embeddings.load_pretrained_vectors(
-                model_opt.pre_word_vecs_dec, model_opt.fix_word_vecs_dec)
+        # Chris: commented while prototyping multi-task
+        #if hasattr(model.encoder, 'embeddings'):
+        #    model.encoder.embeddings.load_pretrained_vectors(
+        #        model_opt.pre_word_vecs_enc, model_opt.fix_word_vecs_enc)
+        #if hasattr(model.decoder, 'embeddings'):
+        #    model.decoder.embeddings.load_pretrained_vectors(
+        #        model_opt.pre_word_vecs_dec, model_opt.fix_word_vecs_dec)
 
     # Add generator to model (this registers it as parameter of model).
     model.generator = generator
