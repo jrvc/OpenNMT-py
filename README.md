@@ -3,6 +3,12 @@
 [![Build Status](https://travis-ci.org/OpenNMT/OpenNMT-py.svg?branch=master)](https://travis-ci.org/OpenNMT/OpenNMT-py)
 [![Run on FH](https://img.shields.io/badge/Run%20on-FloydHub-blue.svg)](https://floydhub.com/run?template=https://github.com/OpenNMT/OpenNMT-py)
 
+## About this branch
+Developed on the MT Marathon 2018
+Implementation of a conjugate attention encoder-decoder nmt framework ([Cífka and Bojar, 2018](https://arxiv.org/pdf/1805.06536.pdf))
+with a language-rotating schedule ([Lu et al., 2018](https://arxiv.org/abs/1804.08198))
+
+
 This is a [Pytorch](https://github.com/pytorch/pytorch)
 port of [OpenNMT](https://github.com/OpenNMT/OpenNMT),
 an open-source (MIT) neural machine translation system. It is designed to be research friendly to try out new ideas in translation, summary, image-to-text, morphology, and many other domains.
