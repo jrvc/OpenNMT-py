@@ -72,6 +72,17 @@ def training_opt_postprocessing(opt):
     return opt
 
 
+def build_train_iter_fct(path_, fields_, opt_):
+
+    def train_iter_wrapper():
+        return build_dataset_iter(lazily_load_dataset("train", path_),
+                                  fields_,
+                                  opt_)
+
+    return train_iter_wrapper
+
+
+
 def main(opt):
     opt = training_opt_postprocessing(opt)
     init_logger(opt.log_file)
@@ -112,19 +123,17 @@ def main(opt):
 
         encoders[src_lang] = encoder
 
-        # TODO: call this once for every user-specified dataset
-        def train_iter_fct(): return build_dataset_iter(
-            lazily_load_dataset("train", data_path), fields, opt)
-
         def valid_iter_fct(): return build_dataset_iter(
             lazily_load_dataset("valid", data_path), fields, opt)
 
         # add this dataset iterator to the training iterators
-        train_iter_fcts[(src_lang, tgt_lang)] = train_iter_fct
+        train_iter_fcts[(src_lang, tgt_lang)] = build_train_iter_fct(data_path,
+                                                                     fields,
+                                                                     opt)
 
 
     # build the model with all of the encoders and all of the decoders
-    # TODO: note here we just replace the encoders of the final model
+    # note here we just replace the encoders of the final model
     model = build_model(model_opt, opt, fields, checkpoint)
 
     # TODO: this is a hack which will only work for multi-encoder
