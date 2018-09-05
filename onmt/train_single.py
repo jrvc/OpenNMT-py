@@ -85,7 +85,6 @@ def main(opt):
         checkpoint = None
         model_opt = opt
 
-
     # For each dataset, load fields generated from preprocess phase.
     train_iter_fcts = {}
 
@@ -121,7 +120,7 @@ def main(opt):
             lazily_load_dataset("valid", data_path), fields, opt)
 
         # add this dataset iterator to the training iterators
-        train_iter_fcts = {(src_lang, tgt_lang): train_iter_fct}
+        train_iter_fcts[(src_lang, tgt_lang)] = train_iter_fct
 
 
     # build the model with all of the encoders and all of the decoders
@@ -135,6 +134,9 @@ def main(opt):
     encoders = nn.ModuleList(encoders.values())
     model.encoder_ids = encoder_ids
     model.encoders = encoders
+
+    if len(opt.gpuid) > 0:
+        model.to('cuda')
 
     n_params, enc, dec = _tally_parameters(model)
     logger.info('encoder: %d' % enc)
