@@ -158,6 +158,8 @@ class Trainer(object):
                 batch = next(train_iters[(src_lang, tgt_lang)])
             except:
                 # re-init the iterator
+                logger.info('recreating {}-{} dataset'.format(src_lang,
+                                                              tgt_lang))
                 train_iters[(src_lang, tgt_lang)] = \
                     (b for b in train_iter_fcts[(src_lang, tgt_lang)]())
                 batch = next(train_iters[(src_lang, tgt_lang)])
