@@ -286,3 +286,4 @@ def build_model(model_opt, opt, fields, checkpoint):
                              use_gpu(opt), checkpoint)
     logger.info(model)
     return model
+

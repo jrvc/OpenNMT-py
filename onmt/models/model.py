@@ -69,6 +69,8 @@ class MultiTaskModel(nn.Module):
         return decoder_outputs, attns, dec_state
 
 
+from onmt.attention_bridge import AttentionBridge 
+
 class NMTModel(nn.Module):
     """
     Core trainable object in OpenNMT. Implements a trainable interface
@@ -80,10 +82,12 @@ class NMTModel(nn.Module):
       multi<gpu (bool): setup for multigpu support
     """
 
-    def __init__(self, encoder, decoder, multigpu=False):
+    def __init__(self, encoder, decoder, model_opt, multigpu=False):
         self.multigpu = multigpu
         super(NMTModel, self).__init__()
         self.encoder = encoder
+        self.use_attention_bridge = model_opt.use_attention_bridge
+        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads)#, model_opt.dropout)
         self.decoder = decoder
 
     def forward(self, src, tgt, lengths, dec_state=None):
@@ -112,6 +116,10 @@ class NMTModel(nn.Module):
         enc_final, memory_bank = self.encoder(src, lengths)
         enc_state = \
             self.decoder.init_decoder_state(src, memory_bank, enc_final)
+        # Implement attention bridge/compound attention
+        if self.use_attention_bridge:
+            enc_final, memory_bank = self.attention_bridge(memory_bank)
+
         decoder_outputs, dec_state, attns = \
             self.decoder(tgt, memory_bank,
                          enc_state if dec_state is None
