@@ -11,6 +11,8 @@
 
 from __future__ import division
 
+import random
+
 import onmt.inputters as inputters
 import onmt.utils
 
@@ -31,6 +33,8 @@ def build_trainer(opt, model, fields, optim, data_type, model_saver=None):
         model_saver(:obj:`onmt.models.ModelSaverBase`): the utility object
             used to save the model
     """
+    # Chris: needs to be changed to `train_losses`, one for every decoder
+
     train_loss = onmt.utils.loss.build_loss_compute(
         model, fields["tgt"].vocab, opt)
     valid_loss = onmt.utils.loss.build_loss_compute(
@@ -107,7 +111,8 @@ class Trainer(object):
         # Set model in training mode.
         self.model.train()
 
-    def train(self, train_iter_fct, valid_iter_fct, train_steps, valid_steps):
+    # def train(self, train_iter_fct, valid_iter_fct, train_steps, valid_steps):
+    def train(self, train_iter_fcts, valid_iter_fct, train_steps, valid_steps):
         """
         The main training loops.
         by iterating over training data (i.e. `train_iter_fct`)
@@ -131,79 +136,101 @@ class Trainer(object):
         true_batchs = []
         accum = 0
         normalization = 0
-        train_iter = train_iter_fct()
+        # train_iter = train_iter_fct()
 
         total_stats = onmt.utils.Statistics()
         report_stats = onmt.utils.Statistics()
         self._start_report_manager(start_time=total_stats.start_time)
 
+        # init every train iter
+        train_iters = {k: (b for b in f())
+                       for k, f in train_iter_fcts.items()}
+
         while step <= train_steps:
 
             reduce_counter = 0
-            for i, batch in enumerate(train_iter):
-                if self.n_gpu == 0 or (i % self.n_gpu == self.gpu_rank):
-                    if self.gpu_verbose_level > 1:
-                        logger.info("GpuRank %d: index: %d accum: %d"
-                                    % (self.gpu_rank, i, accum))
+            # TODO: how to attach the source and target languages to the batch?
+            # WORKING: maintain a dict of train funcs, one for each language pair
+            # for i, batch in enumerate(train_iter):
+            src_lang, tgt_lang = random.choice(list(train_iters.keys()))
 
-                    true_batchs.append(batch)
+            try:
+                batch = next(train_iters[(src_lang, tgt_lang)])
+            except:
+                # re-init the iterator
+                train_iters[(src_lang, tgt_lang)] = \
+                    (b for b in train_iter_fcts[(src_lang, tgt_lang)]())
+                batch = next(train_iters[(src_lang, tgt_lang)])
 
-                    if self.norm_method == "tokens":
-                        num_tokens = batch.tgt[1:].ne(
-                            self.train_loss.padding_idx).sum()
-                        normalization += num_tokens.item()
-                    else:
-                        normalization += batch.batch_size
-                    accum += 1
-                    if accum == self.grad_accum_count:
-                        reduce_counter += 1
+            # assign the source and target langs to the batch
+            setattr(batch, 'src_lang', src_lang)
+            setattr(batch, 'tgt_lang', tgt_lang)
+
+            # CHRIS: note this may not work for multi-gpu or accumulation
+            if self.n_gpu == 0 or (i % self.n_gpu == self.gpu_rank):
+                if self.gpu_verbose_level > 1:
+                    logger.info("GpuRank %d: index: %d accum: %d"
+                                % (self.gpu_rank, i, accum))
+
+                true_batchs.append(batch)
+
+                if self.norm_method == "tokens":
+                    num_tokens = batch.tgt[1:].ne(
+                        self.train_loss.padding_idx).sum()
+                    normalization += num_tokens.item()
+                else:
+                    normalization += batch.batch_size
+                accum += 1
+                if accum == self.grad_accum_count:
+                    reduce_counter += 1
+                    if self.gpu_verbose_level > 0:
+                        logger.info("GpuRank %d: reduce_counter: %d \
+                                    n_minibatch %d"
+                                    % (self.gpu_rank, reduce_counter,
+                                       len(true_batchs)))
+                    if self.n_gpu > 1:
+                        normalization = sum(onmt.utils.distributed
+                                            .all_gather_list
+                                            (normalization))
+
+                    self._gradient_accumulation(
+                        true_batchs, normalization, total_stats,
+                        report_stats)
+
+                    report_stats = self._maybe_report_training(
+                        step, train_steps,
+                        self.optim.learning_rate,
+                        report_stats)
+
+                    true_batchs = []
+                    accum = 0
+                    normalization = 0
+                    if (step % valid_steps == 0):
                         if self.gpu_verbose_level > 0:
-                            logger.info("GpuRank %d: reduce_counter: %d \
-                                        n_minibatch %d"
-                                        % (self.gpu_rank, reduce_counter,
-                                           len(true_batchs)))
-                        if self.n_gpu > 1:
-                            normalization = sum(onmt.utils.distributed
-                                                .all_gather_list
-                                                (normalization))
+                            logger.info('GpuRank %d: validate step %d'
+                                        % (self.gpu_rank, step))
+                        valid_iter = valid_iter_fct()
+                        valid_stats = self.validate(valid_iter)
+                        if self.gpu_verbose_level > 0:
+                            logger.info('GpuRank %d: gather valid stat \
+                                        step %d' % (self.gpu_rank, step))
+                        valid_stats = self._maybe_gather_stats(valid_stats)
+                        if self.gpu_verbose_level > 0:
+                            logger.info('GpuRank %d: report stat step %d'
+                                        % (self.gpu_rank, step))
+                        self._report_step(self.optim.learning_rate,
+                                          step, valid_stats=valid_stats)
 
-                        self._gradient_accumulation(
-                            true_batchs, normalization, total_stats,
-                            report_stats)
+                    if self.gpu_rank == 0:
+                        self._maybe_save(step)
+                    step += 1
+                    if step > train_steps:
+                        break
 
-                        report_stats = self._maybe_report_training(
-                            step, train_steps,
-                            self.optim.learning_rate,
-                            report_stats)
-
-                        true_batchs = []
-                        accum = 0
-                        normalization = 0
-                        if (step % valid_steps == 0):
-                            if self.gpu_verbose_level > 0:
-                                logger.info('GpuRank %d: validate step %d'
-                                            % (self.gpu_rank, step))
-                            valid_iter = valid_iter_fct()
-                            valid_stats = self.validate(valid_iter)
-                            if self.gpu_verbose_level > 0:
-                                logger.info('GpuRank %d: gather valid stat \
-                                            step %d' % (self.gpu_rank, step))
-                            valid_stats = self._maybe_gather_stats(valid_stats)
-                            if self.gpu_verbose_level > 0:
-                                logger.info('GpuRank %d: report stat step %d'
-                                            % (self.gpu_rank, step))
-                            self._report_step(self.optim.learning_rate,
-                                              step, valid_stats=valid_stats)
-
-                        if self.gpu_rank == 0:
-                            self._maybe_save(step)
-                        step += 1
-                        if step > train_steps:
-                            break
             if self.gpu_verbose_level > 0:
                 logger.info('GpuRank %d: we completed an epoch \
                             at step %d' % (self.gpu_rank, step))
-            train_iter = train_iter_fct()
+            # train_iter = train_iter_fct()
 
         return total_stats
 
@@ -247,6 +274,8 @@ class Trainer(object):
         if self.grad_accum_count > 1:
             self.model.zero_grad()
 
+        # Chris: the `batch` contains the information about what the source
+        # Chris: and target languages are
         for batch in true_batchs:
             target_size = batch.tgt.size(0)
             # Truncated BPTT: reminder not compatible with accum > 1
@@ -272,8 +301,15 @@ class Trainer(object):
                 # 2. F-prop all but generator.
                 if self.grad_accum_count == 1:
                     self.model.zero_grad()
+
+                # Chris: self.model will handle selecting the correct encoder
+                # Chris: and decoder, but it won't select the right generator
                 outputs, attns, dec_state = \
-                    self.model(src, tgt, src_lengths, dec_state)
+                    self.model(src, tgt,
+                               batch.src_lang,
+                               batch.tgt_lang,
+                               src_lengths,
+                               dec_state)
 
                 # 3. Compute loss in shards for memory efficiency.
                 batch_stats = self.train_loss.sharded_compute_loss(

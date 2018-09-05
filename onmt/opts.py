@@ -231,9 +231,12 @@ def train_opts(parser):
     """ Training and saving options """
 
     group = parser.add_argument_group('General')
-    group.add_argument('-data', required=True,
+    group.add_argument('-data', required=True, nargs='+', type=str,
                        help="""Path prefix to the ".train.pt" and
                        ".valid.pt" file path from preprocess.py""")
+    group.add_argument('-src_tgt', required=True, nargs='+', type=str,
+                       help="""src and tgt language codes in the form
+                       <src>-<tgt>""")
 
     group.add_argument('-save_model', default='model',
                        help="""Model filename (the model will be saved as
