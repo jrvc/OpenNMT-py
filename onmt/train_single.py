@@ -72,10 +72,10 @@ def training_opt_postprocessing(opt):
     return opt
 
 
-def build_train_iter_fct(path_, fields_, opt_):
+def build_data_iter_fct(dataset_name, path_, fields_, opt_):
 
     def train_iter_wrapper():
-        return build_dataset_iter(lazily_load_dataset("train", path_),
+        return build_dataset_iter(lazily_load_dataset(dataset_name, path_),
                                   fields_,
                                   opt_)
 
@@ -123,13 +123,12 @@ def main(opt):
 
         encoders[src_lang] = encoder
 
-        def valid_iter_fct(): return build_dataset_iter(
-            lazily_load_dataset("valid", data_path), fields, opt)
 
         # add this dataset iterator to the training iterators
-        train_iter_fcts[(src_lang, tgt_lang)] = build_train_iter_fct(data_path,
-                                                                     fields,
-                                                                     opt)
+        train_iter_fcts[(src_lang, tgt_lang)] = build_data_iter_fct('train',
+                                                                    data_path,
+                                                                    fields,
+                                                                    opt)
 
 
     # build the model with all of the encoders and all of the decoders
@@ -163,6 +162,8 @@ def main(opt):
 
     trainer = build_trainer(
         opt, model, fields, optim, data_type, model_saver=model_saver)
+
+    valid_iter_fct = build_data_iter_fct('valid', data_path, fields, opt)
 
     #trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
     #              opt.valid_steps)
