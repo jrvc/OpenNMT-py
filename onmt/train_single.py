@@ -72,6 +72,17 @@ def training_opt_postprocessing(opt):
     return opt
 
 
+def build_data_iter_fct(dataset_name, path_, fields_, opt_):
+
+    def train_iter_wrapper():
+        return build_dataset_iter(lazily_load_dataset(dataset_name, path_),
+                                  fields_,
+                                  opt_)
+
+    return train_iter_wrapper
+
+
+
 def main(opt):
     opt = training_opt_postprocessing(opt)
     init_logger(opt.log_file)
@@ -84,7 +95,6 @@ def main(opt):
     else:
         checkpoint = None
         model_opt = opt
-
 
     # For each dataset, load fields generated from preprocess phase.
     train_iter_fcts = {}
@@ -113,19 +123,16 @@ def main(opt):
 
         encoders[src_lang] = encoder
 
-        # TODO: call this once for every user-specified dataset
-        def train_iter_fct(): return build_dataset_iter(
-            lazily_load_dataset("train", data_path), fields, opt)
-
-        def valid_iter_fct(): return build_dataset_iter(
-            lazily_load_dataset("valid", data_path), fields, opt)
 
         # add this dataset iterator to the training iterators
-        train_iter_fcts = {(src_lang, tgt_lang): train_iter_fct}
+        train_iter_fcts[(src_lang, tgt_lang)] = build_data_iter_fct('train',
+                                                                    data_path,
+                                                                    fields,
+                                                                    opt)
 
 
     # build the model with all of the encoders and all of the decoders
-    # TODO: note here we just replace the encoders of the final model
+    # note here we just replace the encoders of the final model
     model = build_model(model_opt, opt, fields, checkpoint)
 
     # TODO: this is a hack which will only work for multi-encoder
@@ -135,6 +142,9 @@ def main(opt):
     encoders = nn.ModuleList(encoders.values())
     model.encoder_ids = encoder_ids
     model.encoders = encoders
+
+    if len(opt.gpuid) > 0:
+        model.to('cuda')
 
     n_params, enc, dec = _tally_parameters(model)
     logger.info('encoder: %d' % enc)
@@ -152,6 +162,8 @@ def main(opt):
 
     trainer = build_trainer(
         opt, model, fields, optim, data_type, model_saver=model_saver)
+
+    valid_iter_fct = build_data_iter_fct('valid', data_path, fields, opt)
 
     #trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
     #              opt.valid_steps)

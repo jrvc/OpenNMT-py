@@ -158,6 +158,8 @@ class Trainer(object):
                 batch = next(train_iters[(src_lang, tgt_lang)])
             except:
                 # re-init the iterator
+                logger.info('recreating {}-{} dataset'.format(src_lang,
+                                                              tgt_lang))
                 train_iters[(src_lang, tgt_lang)] = \
                     (b for b in train_iter_fcts[(src_lang, tgt_lang)]())
                 batch = next(train_iters[(src_lang, tgt_lang)])
@@ -167,7 +169,8 @@ class Trainer(object):
             setattr(batch, 'tgt_lang', tgt_lang)
 
             # CHRIS: note this may not work for multi-gpu or accumulation
-            if self.n_gpu == 0 or (i % self.n_gpu == self.gpu_rank):
+            #if self.n_gpu == 0 or (i % self.n_gpu == self.gpu_rank):
+            if self.n_gpu == 0 or (step % self.n_gpu == self.gpu_rank):
                 if self.gpu_verbose_level > 1:
                     logger.info("GpuRank %d: index: %d accum: %d"
                                 % (self.gpu_rank, i, accum))
