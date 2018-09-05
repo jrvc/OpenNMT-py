@@ -499,7 +499,7 @@ def build_dataset_iter(datasets, fields, opt, is_train=True):
                            device, is_train)
 
 
-def lazily_load_dataset(corpus_type, opt):
+def lazily_load_dataset(corpus_type, data_path):
     """
     Dataset generator. Don't do extra stuff here, like printing,
     because they will be postponed to the first loading time.
@@ -518,24 +518,25 @@ def lazily_load_dataset(corpus_type, opt):
         return dataset
 
     # Sort the glob output by file name (by increasing indexes).
-    pts = sorted(glob.glob(opt.data + '.' + corpus_type + '.[0-9]*.pt'))
+    pts = sorted(glob.glob(data_path + '.' + corpus_type + '.[0-9]*.pt'))
     if pts:
         for pt in pts:
             yield _lazy_dataset_loader(pt, corpus_type)
     else:
         # Only one inputters.*Dataset, simple!
-        pt = opt.data + '.' + corpus_type + '.pt'
+        pt = data_path + '.' + corpus_type + '.pt'
         yield _lazy_dataset_loader(pt, corpus_type)
 
 
-def _load_fields(dataset, data_type, opt, checkpoint):
+def _load_fields(dataset, data_type, data_path, checkpoint):
+    # Chris: this will break for multilingual settings
     if checkpoint is not None:
-        logger.info('Loading vocab from checkpoint at %s.' % opt.train_from)
+        # logger.info('Loading vocab from checkpoint at %s.' % opt.train_from)
         fields = load_fields_from_vocab(
             checkpoint['vocab'], data_type)
     else:
         fields = load_fields_from_vocab(
-            torch.load(opt.data + '.vocab.pt'), data_type)
+            torch.load(data_path + '.vocab.pt'), data_type)
     fields = dict([(k, f) for (k, f) in fields.items()
                    if k in dataset.examples[0].__dict__])
 

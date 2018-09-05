@@ -8,12 +8,15 @@ import argparse
 import os
 import random
 import torch
+import torch.nn as nn
 
 import onmt.opts as opts
 
+from collections import defaultdict, OrderedDict
+
 from onmt.inputters.inputter import build_dataset_iter, lazily_load_dataset, \
     _load_fields, _collect_report_features
-from onmt.model_builder import build_model
+from onmt.model_builder import build_model, build_embeddings_then_encoder
 from onmt.utils.optimizers import build_optim
 from onmt.trainer import build_trainer
 from onmt.models import build_model_saver
@@ -82,30 +85,63 @@ def main(opt):
         checkpoint = None
         model_opt = opt
 
-    # Peek the first dataset to determine the data_type.
-    # (All datasets have the same data_type).
-    first_dataset = next(lazily_load_dataset("train", opt))
-    data_type = first_dataset.data_type
 
-    # Load fields generated from preprocess phase.
-    fields = _load_fields(first_dataset, data_type, opt, checkpoint)
+    # For each dataset, load fields generated from preprocess phase.
+    train_iter_fcts = {}
 
-    # Report src/tgt features.
+    # Loop to create encoders
+    encoders = OrderedDict()
+    for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
+        src_lang, tgt_lang = src_tgt_lang.split('-')
+        # Peek the first dataset to determine the data_type.
+        # (All datasets have the same data_type).
+        first_dataset = next(lazily_load_dataset("train", data_path))
+        data_type = first_dataset.data_type
+        fields = _load_fields(first_dataset, data_type, data_path, checkpoint)
 
-    src_features, tgt_features = _collect_report_features(fields)
-    for j, feat in enumerate(src_features):
-        logger.info(' * src feature %d size = %d'
-                    % (j, len(fields[feat].vocab)))
-    for j, feat in enumerate(tgt_features):
-        logger.info(' * tgt feature %d size = %d'
-                    % (j, len(fields[feat].vocab)))
+        # Report src/tgt features.
+        src_features, tgt_features = _collect_report_features(fields)
+        for j, feat in enumerate(src_features):
+            logger.info(' * src feature %d size = %d'
+                        % (j, len(fields[feat].vocab)))
+        for j, feat in enumerate(tgt_features):
+            logger.info(' * tgt feature %d size = %d'
+                        % (j, len(fields[feat].vocab)))
 
-    # Build model.
+        # Build model.
+        encoder = build_embeddings_then_encoder(model_opt, fields)
+
+        encoders[src_lang] = encoder
+
+        # TODO: call this once for every user-specified dataset
+        def train_iter_fct(): return build_dataset_iter(
+            lazily_load_dataset("train", data_path), fields, opt)
+
+        def valid_iter_fct(): return build_dataset_iter(
+            lazily_load_dataset("valid", data_path), fields, opt)
+
+        # add this dataset iterator to the training iterators
+        train_iter_fcts = {(src_lang, tgt_lang): train_iter_fct}
+
+
+    # build the model with all of the encoders and all of the decoders
+    # TODO: note here we just replace the encoders of the final model
     model = build_model(model_opt, opt, fields, checkpoint)
+
+    # TODO: this is a hack which will only work for multi-encoder
+    encoder_ids = {lang_code: idx
+                   for lang_code, idx
+                   in zip(encoders.keys(), range(len(list(encoders.keys()))))}
+    encoders = nn.ModuleList(encoders.values())
+    model.encoder_ids = encoder_ids
+    model.encoders = encoders
+
     n_params, enc, dec = _tally_parameters(model)
     logger.info('encoder: %d' % enc)
     logger.info('decoder: %d' % dec)
     logger.info('* number of parameters: %d' % n_params)
+    logger.info(model)
+
     _check_save_model_path(opt)
 
     # Build optimizer.
@@ -117,14 +153,9 @@ def main(opt):
     trainer = build_trainer(
         opt, model, fields, optim, data_type, model_saver=model_saver)
 
-    def train_iter_fct(): return build_dataset_iter(
-        lazily_load_dataset("train", opt), fields, opt)
-
-    def valid_iter_fct(): return build_dataset_iter(
-        lazily_load_dataset("valid", opt), fields, opt, is_train=False)
-
-    # Do training.
-    trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
+    #trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
+    #              opt.valid_steps)
+    trainer.train(train_iter_fcts, valid_iter_fct, opt.train_steps,
                   opt.valid_steps)
 
     if opt.tensorboard:
