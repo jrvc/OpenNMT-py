@@ -112,7 +112,7 @@ class Trainer(object):
         self.model.train()
 
     # def train(self, train_iter_fct, valid_iter_fct, train_steps, valid_steps):
-    def train(self, train_iter_fcts, valid_iter_fct, train_steps, valid_steps):
+    def train(self, train_iter_fcts, valid_iter_fcts, train_steps, valid_steps):
         """
         The main training loops.
         by iterating over training data (i.e. `train_iter_fct`)
@@ -206,20 +206,24 @@ class Trainer(object):
                     accum = 0
                     normalization = 0
                     if (step % valid_steps == 0):
-                        if self.gpu_verbose_level > 0:
-                            logger.info('GpuRank %d: validate step %d'
-                                        % (self.gpu_rank, step))
-                        valid_iter = valid_iter_fct()
-                        valid_stats = self.validate(valid_iter)
-                        if self.gpu_verbose_level > 0:
-                            logger.info('GpuRank %d: gather valid stat \
-                                        step %d' % (self.gpu_rank, step))
-                        valid_stats = self._maybe_gather_stats(valid_stats)
-                        if self.gpu_verbose_level > 0:
-                            logger.info('GpuRank %d: report stat step %d'
-                                        % (self.gpu_rank, step))
-                        self._report_step(self.optim.learning_rate,
-                                          step, valid_stats=valid_stats)
+                        for lang_pair in valid_iter_fcts.items():
+                            valid_iter_fct = lang_pair[1]
+                            src_tgt = lang_pair[0]
+                            # loop valid over all lang pairs
+                            if self.gpu_verbose_level > 0:
+                                logger.info('GpuRank %d: validate step %d'
+                                            % (self.gpu_rank, step))
+                            valid_iter = valid_iter_fct()
+                            valid_stats = self.validate(valid_iter, src_tgt)
+                            if self.gpu_verbose_level > 0:
+                                logger.info('GpuRank %d: gather valid stat \
+                                            step %d' % (self.gpu_rank, step))
+                            valid_stats = self._maybe_gather_stats(valid_stats)
+                            if self.gpu_verbose_level > 0:
+                                logger.info('GpuRank %d: report stat step %d'
+                                            % (self.gpu_rank, step))
+                            self._report_step(self.optim.learning_rate,
+                                              step, valid_stats=valid_stats)
 
                     if self.gpu_rank == 0:
                         self._maybe_save(step)
@@ -234,7 +238,7 @@ class Trainer(object):
 
         return total_stats
 
-    def validate(self, valid_iter):
+    def validate(self, valid_iter, src_tgt):
         """ Validate model.
             valid_iter: validate data iterator
         Returns:
@@ -246,6 +250,8 @@ class Trainer(object):
         stats = onmt.utils.Statistics()
 
         for batch in valid_iter:
+            setattr(batch, 'src_lang', src_tgt[0])
+            setattr(batch, 'tgt_lang', src_tgt[1])
             src = inputters.make_features(batch, 'src', self.data_type)
             if self.data_type == 'text':
                 _, src_lengths = batch.src
@@ -255,8 +261,21 @@ class Trainer(object):
             tgt = inputters.make_features(batch, 'tgt')
 
             # F-prop through the model.
-            outputs, attns, _ = self.model(src, tgt, src_lengths)
-
+            """
+            import ipdb; ipdb.set_trace(context=5)
+            if not(self.model.name == 'MultiTaskModel'):
+                outputs, attns, _ = self.model(src, tgt, src_lengths)
+            else:
+                outputs, attns, _ = self.model(src, tgt,
+                                batch.src_lang,
+                                batch.tgt_lang,
+                                src_lengths,
+                                dec_state)
+            """
+            outputs, attns, _ = self.model(src, tgt,
+                            batch.src_lang,
+                            batch.tgt_lang,
+                            src_lengths)
             # Compute loss.
             batch_stats = self.valid_loss.monolithic_compute_loss(
                 batch, outputs, attns)
