@@ -98,7 +98,7 @@ def main(opt):
 
     # For each dataset, load fields generated from preprocess phase.
     train_iter_fcts = {}
-
+    valid_iter_fcts = {}
     # Loop to create encoders
     encoders = OrderedDict()
     for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
@@ -126,6 +126,11 @@ def main(opt):
 
         # add this dataset iterator to the training iterators
         train_iter_fcts[(src_lang, tgt_lang)] = build_data_iter_fct('train',
+                                                                    data_path,
+                                                                    fields,
+                                                                    opt)
+        # add this dataset iterator to the validation iterators
+        valid_iter_fcts[(src_lang, tgt_lang)] = build_data_iter_fct('valid',
                                                                     data_path,
                                                                     fields,
                                                                     opt)
@@ -167,7 +172,7 @@ def main(opt):
 
     #trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
     #              opt.valid_steps)
-    trainer.train(train_iter_fcts, valid_iter_fct, opt.train_steps,
+    trainer.train(train_iter_fcts, valid_iter_fcts, opt.train_steps,
                   opt.valid_steps)
 
     if opt.tensorboard:
