@@ -86,11 +86,10 @@ def main(opt):
         model_opt = opt
 
 
-    # CHRIS: WORKING -- this is a for loop
     # For each dataset, load fields generated from preprocess phase.
-    dataset_info = defaultdict(lambda: defaultdict())
     train_iter_fcts = {}
 
+    # Loop to create encoders
     encoders = OrderedDict()
     for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
         src_lang, tgt_lang = src_tgt_lang.split('-')
