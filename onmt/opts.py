@@ -410,6 +410,12 @@ def train_opts(parser):
     group.add_argument('-window_size', type=float, default=.02,
                        help="Window size for spectrogram in seconds.")
 
+   # neural_interlingua options
+    group = parser.add_argument_group('Attention_bridge')
+    group.add_argument('-use_attention_bridge', type=bool, default=False,
+                       help="Use self-attention layer between enc and dec")
+    group.add_argument('-attention_heads', type=int, default=4,
+                      help="Number of attention heads in attention brige")
 
 def translate_opts(parser):
     """ Translation / inference options """
