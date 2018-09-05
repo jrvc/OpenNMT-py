@@ -153,7 +153,6 @@ def main(opt):
     trainer = build_trainer(
         opt, model, fields, optim, data_type, model_saver=model_saver)
 
-
     #trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
     #              opt.valid_steps)
     trainer.train(train_iter_fcts, valid_iter_fct, opt.train_steps,
