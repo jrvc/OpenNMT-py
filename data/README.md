@@ -6,11 +6,13 @@
 
 > python train.py -data data/data -save_model /n/rush_lab/data/tmp_ -gpuid 0 -rnn_size 100 -word_vec_size 50 -layers 1 -train_steps 100 -optim adam  -learning_rate 0.001
 
+```
 # multi-task
 python train.py -data data/data data/data -src_tgt en-de fr-de -save_model /tmp/test_multitask -rnn_size 100 -word_vec_size 50 -layers 1 -train_steps 100 -optim adam  -learning_rate 0.001
+```
 
-
-# Running Multi-Source training with Multi-30k
+#### Getting a toy multi source/target dataset
+```
 mkdir multi30k && cd multi30k
 git clone git@github.com:multi30k/dataset.git
 
@@ -43,6 +45,8 @@ do
       -tgt_vocab_size 10000
   done
 done
+
+```
 
 
 
