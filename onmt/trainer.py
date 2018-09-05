@@ -212,6 +212,7 @@ class Trainer(object):
                         for lang_pair in valid_iter_fcts.items():
                             valid_iter_fct = lang_pair[1]
                             src_tgt = lang_pair[0]
+                            logger.info('Current language pair: {}'.format(src_tgt))
                             # loop valid over all lang pairs
                             if self.gpu_verbose_level > 0:
                                 logger.info('GpuRank %d: validate step %d'
