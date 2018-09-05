@@ -144,6 +144,28 @@ def load_test_model(opt, dummy_opt, model_path=None):
     return fields, model, model_opt
 
 
+def build_embeddings_then_encoder(model_opt, fields):
+    if model_opt.model_type == "text":
+        src_dict = fields["src"].vocab
+        feature_dicts = inputters.collect_feature_vocabs(fields, 'src')
+        src_embeddings = build_embeddings(model_opt, src_dict, feature_dicts)
+        encoder = build_encoder(model_opt, src_embeddings)
+    elif model_opt.model_type == "img":
+        encoder = ImageEncoder(model_opt.enc_layers,
+                               model_opt.brnn,
+                               model_opt.rnn_size,
+                               model_opt.dropout)
+    elif model_opt.model_type == "audio":
+        encoder = AudioEncoder(model_opt.enc_layers,
+                               model_opt.brnn,
+                               model_opt.rnn_size,
+                               model_opt.dropout,
+                               model_opt.sample_rate,
+                               model_opt.window_size)
+
+    return encoder
+
+
 def build_base_model(model_opt, fields, gpu, checkpoint=None):
     """
     Args:
@@ -157,6 +179,8 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
     """
     assert model_opt.model_type in ["text", "img", "audio"], \
         ("Unsupported model type %s" % (model_opt.model_type))
+
+    # TODO: loop over fields objects, and taking the "src" from each one
 
     # Build encoder.
     if model_opt.model_type == "text":
@@ -197,8 +221,9 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
     # Build NMTModel(= encoder + decoder).
     device = torch.device("cuda" if gpu else "cpu")
 
-    # Chris: replace this line with model = onmt.models.MultiTaskModel
+    # Chris: a different model type for multi-task models
     # model = onmt.models.NMTModel(encoder, decoder)
+    # TODO: encoders is a dict of encoders
     model = onmt.models.MultiTaskModel(encoder, decoder)
     model.model_type = model_opt.model_type
 
@@ -248,6 +273,10 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
     model.to(device)
 
     return model
+
+
+def build_multitask_model():
+    pass
 
 
 def build_model(model_opt, opt, fields, checkpoint):

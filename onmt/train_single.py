@@ -8,14 +8,15 @@ import argparse
 import os
 import random
 import torch
+import torch.nn as nn
 
 import onmt.opts as opts
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 from onmt.inputters.inputter import build_dataset_iter, lazily_load_dataset, \
     _load_fields, _collect_report_features
-from onmt.model_builder import build_model
+from onmt.model_builder import build_model, build_embeddings_then_encoder
 from onmt.utils.optimizers import build_optim
 from onmt.trainer import build_trainer
 from onmt.models import build_model_saver
@@ -90,6 +91,7 @@ def main(opt):
     dataset_info = defaultdict(lambda: defaultdict())
     train_iter_fcts = {}
 
+    encoders = OrderedDict()
     for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
         src_lang, tgt_lang = src_tgt_lang.split('-')
         # Peek the first dataset to determine the data_type.
@@ -98,7 +100,7 @@ def main(opt):
         data_type = first_dataset.data_type
         fields = _load_fields(first_dataset, data_type, data_path, checkpoint)
 
-    # Report src/tgt features.
+        # Report src/tgt features.
         src_features, tgt_features = _collect_report_features(fields)
         for j, feat in enumerate(src_features):
             logger.info(' * src feature %d size = %d'
@@ -108,21 +110,25 @@ def main(opt):
                         % (j, len(fields[feat].vocab)))
 
         # Build model.
-        model = build_model(model_opt, opt, fields, checkpoint)
-        n_params, enc, dec = _tally_parameters(model)
-        logger.info('encoder: %d' % enc)
-        logger.info('decoder: %d' % dec)
-        logger.info('* number of parameters: %d' % n_params)
-        _check_save_model_path(opt)
+        encoder = build_embeddings_then_encoder(model_opt, fields)
 
-        # Build optimizer.
-        optim = build_optim(model, opt, checkpoint)
+        encoders[src_lang] = encoder
 
-        # Build model saver
-        model_saver = build_model_saver(model_opt, opt, model, fields, optim)
+        #model = build_model(model_opt, opt, fields, checkpoint)
+        #n_params, enc, dec = _tally_parameters(model)
+        #logger.info('encoder: %d' % enc)
+        #logger.info('decoder: %d' % dec)
+        #logger.info('* number of parameters: %d' % n_params)
+        #_check_save_model_path(opt)
 
-        trainer = build_trainer(
-            opt, model, fields, optim, data_type, model_saver=model_saver)
+        ## Build optimizer.
+        #optim = build_optim(model, opt, checkpoint)
+
+        ## Build model saver
+        #model_saver = build_model_saver(model_opt, opt, model, fields, optim)
+
+        #trainer = build_trainer(
+        #    opt, model, fields, optim, data_type, model_saver=model_saver)
 
         # TODO: call this once for every user-specified dataset
         def train_iter_fct(): return build_dataset_iter(
@@ -133,6 +139,37 @@ def main(opt):
 
         # add this dataset iterator to the training iterators
         train_iter_fcts = {(src_lang, tgt_lang): train_iter_fct}
+
+
+    # build the model with all of the encoders and all of the decoders
+    # TODO: note here we just replace the encoders of the final model
+    model = build_model(model_opt, opt, fields, checkpoint)
+
+    # TODO: this is a hack which will only work for multi-encoder
+    encoder_ids = {lang_code: idx
+                   for lang_code, idx
+                   in zip(encoders.keys(), range(len(list(encoders.keys()))))}
+    encoders = nn.ModuleList(encoders.values())
+    model.encoder_ids = encoder_ids
+    model.encoders = encoders
+
+    n_params, enc, dec = _tally_parameters(model)
+    logger.info('encoder: %d' % enc)
+    logger.info('decoder: %d' % dec)
+    logger.info('* number of parameters: %d' % n_params)
+    logger.info(model)
+
+    _check_save_model_path(opt)
+
+    # Build optimizer.
+    optim = build_optim(model, opt, checkpoint)
+
+    # Build model saver
+    model_saver = build_model_saver(model_opt, opt, model, fields, optim)
+
+    trainer = build_trainer(
+        opt, model, fields, optim, data_type, model_saver=model_saver)
+
 
     #trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
     #              opt.valid_steps)

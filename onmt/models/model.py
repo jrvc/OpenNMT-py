@@ -19,16 +19,10 @@ class MultiTaskModel(nn.Module):
         self.multigpu = multigpu
         super(MultiTaskModel, self).__init__()
 
-        # dummy
-        num_enc_dec = 1
+        # Chris: these fields currently get initialized externally
+        self.encoder_ids = None
+        self.encoders = None
 
-        self.encoder_ids = {'en': 0}
-        self.encoders = nn.ModuleList([copy.deepcopy(encoder)
-                                          for _ in range(num_enc_dec)])
-
-        # self.decoders = {'en_{}'.format(i): copy.deepcopy(decoder)
-        #                  for i in range(num_enc_dec)}
-        # self.encoder = encoder
         self.decoder = decoder
 
     def forward(self, src, tgt, src_task, tgt_task, lengths, dec_state=None):
