@@ -114,22 +114,6 @@ def main(opt):
 
         encoders[src_lang] = encoder
 
-        #model = build_model(model_opt, opt, fields, checkpoint)
-        #n_params, enc, dec = _tally_parameters(model)
-        #logger.info('encoder: %d' % enc)
-        #logger.info('decoder: %d' % dec)
-        #logger.info('* number of parameters: %d' % n_params)
-        #_check_save_model_path(opt)
-
-        ## Build optimizer.
-        #optim = build_optim(model, opt, checkpoint)
-
-        ## Build model saver
-        #model_saver = build_model_saver(model_opt, opt, model, fields, optim)
-
-        #trainer = build_trainer(
-        #    opt, model, fields, optim, data_type, model_saver=model_saver)
-
         # TODO: call this once for every user-specified dataset
         def train_iter_fct(): return build_dataset_iter(
             lazily_load_dataset("train", data_path), fields, opt)
