@@ -544,8 +544,8 @@ def _load_fields(dataset, data_type, data_path, checkpoint):
         logger.info(' * vocabulary size. source = %d; target = %d' %
                     (len(fields['src'].vocab), len(fields['tgt'].vocab)))
         # Dominik: for debugging
-        logger.info('    vocab src sample: %s' % " ".join(fields['src'].vocab.freqs.keys()[:10]))
-        logger.info('    vocab tgt sample: %s' % " ".join(fields['tgt'].vocab.freqs.keys()[:10]))
+        logger.info('    vocab src sample: %s' % " ".join( list(fields['src'].vocab.freqs.keys())[:10]))
+        logger.info('    vocab tgt sample: %s' % " ".join( list(fields['tgt'].vocab.freqs.keys())[:10]))
 
         src_itos = defaultdict(lambda: None, ((v,k) for k,v in fields['src'].vocab.stoi.items()))
         logger.info('    vocab src indeces 0-20: %s' % " ".join("%d:%s" % (i, src_itos[i]) for i in range(21)))
