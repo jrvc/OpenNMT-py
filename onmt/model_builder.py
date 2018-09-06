@@ -166,6 +166,34 @@ def build_embeddings_then_encoder(model_opt, fields):
     return encoder
 
 
+def build_decoder_and_generator(model_opt, fields):
+
+    # Build decoder.
+    tgt_dict = fields["tgt"].vocab
+    feature_dicts = inputters.collect_feature_vocabs(fields, 'tgt')
+    tgt_embeddings = build_embeddings(model_opt, tgt_dict,
+                                      feature_dicts, for_encoder=False)
+
+    decoder = build_decoder(model_opt, tgt_embeddings)
+
+    # Build Generator.
+    if not model_opt.copy_attn:
+        if model_opt.generator_function == "sparsemax":
+            gen_func = onmt.modules.sparse_activations.LogSparsemax(dim=-1)
+        else:
+            gen_func = nn.LogSoftmax(dim=-1)
+        generator = nn.Sequential(
+            nn.Linear(model_opt.rnn_size, len(fields["tgt"].vocab)), gen_func
+        )
+        if model_opt.share_decoder_embeddings:
+            generator[0].weight = decoder.embeddings.word_lut.weight
+    else:
+        generator = CopyGenerator(model_opt.rnn_size,
+                                  fields["tgt"].vocab)
+
+    return decoder, generator
+
+
 def build_base_model(model_opt, fields, gpu, checkpoint=None):
     """
     Args:
@@ -222,8 +250,8 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
     device = torch.device("cuda" if gpu else "cpu")
 
     # Chris: a different model type for multi-task models
-    # model = onmt.models.NMTModel(encoder, decoder)
-    # TODO: encoders is a dict of encoders
+    # WORKING: the encoder and decoder here is are dummies
+    # WORKING: only the generator is used
     model = onmt.models.MultiTaskModel(encoder, decoder)
     model.model_type = model_opt.model_type
 

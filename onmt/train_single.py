@@ -14,9 +14,10 @@ import onmt.opts as opts
 
 from collections import defaultdict, OrderedDict
 
-from onmt.inputters.inputter import build_dataset_iter, lazily_load_dataset, \
-    _load_fields, _collect_report_features
-from onmt.model_builder import build_model, build_embeddings_then_encoder
+from onmt.inputters.inputter import (build_dataset_iter, lazily_load_dataset,
+    _load_fields, _collect_report_features)
+from onmt.model_builder import (build_model, build_embeddings_then_encoder,
+    build_decoder_and_generator)
 from onmt.utils.optimizers import build_optim
 from onmt.trainer import build_trainer
 from onmt.models import build_model_saver
@@ -82,7 +83,6 @@ def build_data_iter_fct(dataset_name, path_, fields_, opt_):
     return train_iter_wrapper
 
 
-
 def main(opt):
     opt = training_opt_postprocessing(opt)
     init_logger(opt.log_file)
@@ -99,8 +99,12 @@ def main(opt):
     # For each dataset, load fields generated from preprocess phase.
     train_iter_fcts = {}
     valid_iter_fcts = {}
-    # Loop to create encoders
+
+    # Loop to create encoders, decoders, and generators
     encoders = OrderedDict()
+    decoders = OrderedDict()
+    generators = OrderedDict()
+
     for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
         src_lang, tgt_lang = src_tgt_lang.split('-')
         # Peek the first dataset to determine the data_type.
@@ -123,6 +127,10 @@ def main(opt):
 
         encoders[src_lang] = encoder
 
+        decoder, generator = build_decoder_and_generator(model_opt, fields)
+
+        decoders[tgt_lang] = decoder
+        generators[tgt_lang] = generator
 
         # add this dataset iterator to the training iterators
         train_iter_fcts[(src_lang, tgt_lang)] = build_data_iter_fct('train',
@@ -135,9 +143,9 @@ def main(opt):
                                                                     fields,
                                                                     opt)
 
-
     # build the model with all of the encoders and all of the decoders
     # note here we just replace the encoders of the final model
+    # WORKING: don't call build model at all, new model creation logic
     model = build_model(model_opt, opt, fields, checkpoint)
 
     # TODO: this is a hack which will only work for multi-encoder
@@ -147,6 +155,17 @@ def main(opt):
     encoders = nn.ModuleList(encoders.values())
     model.encoder_ids = encoder_ids
     model.encoders = encoders
+
+    decoder_ids = {lang_code: idx
+                   for lang_code, idx
+                   in zip(decoders.keys(), range(len(list(decoders.keys()))))}
+    decoders = nn.ModuleList(decoders.values())
+    model.decoder_ids = decoder_ids
+    model.decoders = decoders
+
+    # WORKING: add logic for multi decoder and multi generator
+    # WORKING: add generators and a single, shared loss
+    # WORKING: check logic for shared loss
 
     if len(opt.gpuid) > 0:
         model.to('cuda')
@@ -168,10 +187,6 @@ def main(opt):
     trainer = build_trainer(
         opt, model, fields, optim, data_type, model_saver=model_saver)
 
-    valid_iter_fct = build_data_iter_fct('valid', data_path, fields, opt)
-
-    #trainer.train(train_iter_fct, valid_iter_fct, opt.train_steps,
-    #              opt.valid_steps)
     trainer.train(train_iter_fcts, valid_iter_fcts, opt.train_steps,
                   opt.valid_steps)
 

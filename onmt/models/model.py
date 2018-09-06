@@ -23,7 +23,11 @@ class MultiTaskModel(nn.Module):
         self.encoder_ids = None
         self.encoders = None
 
-        self.decoder = decoder
+        self.decoder_ids = None
+        self.decoders = None
+
+        # generator ids is linked with decoder_ids
+        # self.generators = None
 
     def forward(self, src, tgt, src_task, tgt_task, lengths, dec_state=None):
         """Forward propagate a `src` and `tgt` pair for training.
@@ -49,15 +53,14 @@ class MultiTaskModel(nn.Module):
         tgt = tgt[:-1]  # exclude last target from inputs
 
         encoder = self.encoders[self.encoder_ids[src_task]]
-
-        # decoder = random.choice(list(self.decoders.values()))
+        decoder = self.decoders[self.decoder_ids[tgt_task]]
 
         enc_final, memory_bank = encoder(src, lengths)
         enc_state = \
-            self.decoder.init_decoder_state(src, memory_bank, enc_final)
+            decoder.init_decoder_state(src, memory_bank, enc_final)
 
         decoder_outputs, dec_state, attns = \
-            self.decoder(tgt, memory_bank,
+            decoder(tgt, memory_bank,
                     enc_state if dec_state is None
                     else dec_state,
                     memory_lengths=lengths)
