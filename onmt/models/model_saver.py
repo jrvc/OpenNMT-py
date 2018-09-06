@@ -82,7 +82,7 @@ class ModelSaverBase(object):
         """
         raise NotImplementedError()
 
-
+# WORKING: update this class to support multi-enc, multi-dec
 class ModelSaver(ModelSaverBase):
     """
         Simple model saver to filesystem
@@ -103,12 +103,12 @@ class ModelSaver(ModelSaverBase):
                           else real_model.generator)
 
         model_state_dict = real_model.state_dict()
-        model_state_dict = {k: v for k, v in model_state_dict.items()
-                            if 'generator' not in k}
-        generator_state_dict = real_generator.state_dict()
+        #model_state_dict = {k: v for k, v in model_state_dict.items()
+        #                    if 'generator' not in k}
+        #generator_state_dict = real_generator.state_dict()
         checkpoint = {
             'model': model_state_dict,
-            'generator': generator_state_dict,
+            #'generator': generator_state_dict,
             'vocab': onmt.inputters.save_fields_to_vocab(self.fields),
             'opt': self.model_opt,
             'optim': self.optim,
