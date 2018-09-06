@@ -48,14 +48,14 @@ def build_trainer(opt, model, fields, optim, data_type,
         train_losses[tgt_lang] = \
             build_loss_from_generator_and_vocab(
                 gen,
-                tgt_vocabs[tgt_lang],
+                tgt_vocabs[tgt_lang].vocab,
                 opt,
                 train=True
         )
         valid_losses[tgt_lang] = \
             build_loss_from_generator_and_vocab(
                 gen,
-                tgt_vocabs[tgt_lang],
+                tgt_vocabs[tgt_lang].vocab,
                 opt,
                 train=False
             )

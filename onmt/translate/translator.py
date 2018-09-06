@@ -183,7 +183,20 @@ class Translator(object):
 
         if batch_size is None:
             raise ValueError("batch_size must be set")
-        data = inputters.build_dataset(self.fields,
+        #data = inputters.build_dataset(self.fields,
+        #                               self.data_type,
+        #                               src_path=src_path,
+        #                               src_data_iter=src_data_iter,
+        #                               tgt_path=tgt_path,
+        #                               tgt_data_iter=tgt_data_iter,
+        #                               src_dir=src_dir,
+        #                               sample_rate=self.sample_rate,
+        #                               window_size=self.window_size,
+        #                               window_stride=self.window_stride,
+        #                               window=self.window,
+        #                               use_filter_pred=self.use_filter_pred)
+
+        data = inputters.build_dataset({'src': self.model.src_vocabs['de'], 'tgt': self.model.tgt_vocabs['en']},
                                        self.data_type,
                                        src_path=src_path,
                                        src_data_iter=src_data_iter,
@@ -651,7 +664,8 @@ class Translator(object):
         dec_out, _, _ = self.model.decoder(
             tgt_in, memory_bank, dec_states, memory_lengths=src_lengths)
 
-        tgt_pad = self.fields["tgt"].vocab.stoi[inputters.PAD_WORD]
+        #tgt_pad = self.fields["tgt"].vocab.stoi[inputters.PAD_WORD]
+        tgt_pad = self.tgt_vocabs['de'].stoi[inputters.PAD_WORD]
         for dec, tgt in zip(dec_out, batch.tgt[1:].data):
             # Log prob of each word.
             out = self.model.generator.forward(dec)
