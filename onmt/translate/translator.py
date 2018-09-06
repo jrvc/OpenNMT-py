@@ -34,8 +34,11 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
         fields, model, model_opt = \
             onmt.decoders.ensemble.load_test_model(opt, dummy_opt.__dict__)
     else:
+        import ipdb;ipdb.set_trace()
         fields, model, model_opt = \
             onmt.model_builder.load_test_model(opt, dummy_opt.__dict__)
+
+        model = onmt.model_builder.load_test_multitask_model(opt)
 
     scorer = onmt.translate.GNMTGlobalScorer(opt.alpha,
                                              opt.beta,
@@ -523,8 +526,9 @@ class Translator(object):
         if data_type == 'text':
             _, src_lengths = batch.src
 
-        enc_states, memory_bank = self.model.encoder(src, src_lengths)
-        dec_states = self.model.decoder.init_decoder_state(
+        # enc_states, memory_bank = self.model.encoder(src, src_lengths)
+        enc_states, memory_bank = self.model.encoders[self.model.encoder_ids['de']](src, src_lengths)
+        dec_states = self.model.decoders[self.model.decoder_ids['en']].init_decoder_state(
             src, memory_bank, enc_states)
 
         if src_lengths is None:
@@ -565,7 +569,7 @@ class Translator(object):
             inp = inp.unsqueeze(2)
 
             # Run one step.
-            dec_out, dec_states, attn = self.model.decoder(
+            dec_out, dec_states, attn = self.model.decoders[self.model.decoder_ids['en']](
                 inp, memory_bank, dec_states,
                 memory_lengths=memory_lengths,
                 step=i)
@@ -576,12 +580,14 @@ class Translator(object):
 
             # (b) Compute a vector of batch x beam word scores.
             if not self.copy_attn:
-                out = self.model.generator.forward(dec_out).data
+                # Chris: note model.generators are in the same order as model.decoders
+                out = self.model.generators[self.model.decoder_ids['en']].forward(dec_out).data
                 out = unbottle(out)
                 # beam x tgt_vocab
                 beam_attn = unbottle(attn["std"])
             else:
-                out = self.model.generator.forward(dec_out,
+                # Chris: note model.generators are in the same order as model.decoders
+                out = self.model.generators[self.model.decoder_ids['en']].forward(dec_out,
                                                    attn["copy"].squeeze(0),
                                                    src_map)
                 # beam x (tgt_vocab + extra_vocab)

@@ -105,6 +105,7 @@ def main(opt):
     decoders = OrderedDict()
 
     generators = OrderedDict()
+    src_vocabs = OrderedDict()
     tgt_vocabs = OrderedDict()
 
     for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
@@ -132,6 +133,7 @@ def main(opt):
         decoder, generator = build_decoder_and_generator(model_opt, fields)
 
         decoders[tgt_lang] = decoder
+        src_vocabs[src_lang] = fields['src'].vocab
         tgt_vocabs[tgt_lang] = fields['tgt'].vocab
         generators[tgt_lang] = generator
 
@@ -148,8 +150,14 @@ def main(opt):
 
     # build the model with all of the encoders and all of the decoders
     # note here we just replace the encoders of the final model
+    # WORKING: move all of this to a function
     # TODO: don't call build model at all, new model creation logic here
-    model = build_model(model_opt, opt, fields, checkpoint)
+    # TODO: note that build_base_model is also used when _restarting_ training
+    # TODO: assert that losses, etc... get built correctly when restoring from
+    # TODO:   checkpoint
+
+    # NOTE: checkpoint currently hard-coded to None because we set it below
+    model = build_model(model_opt, opt, fields, checkpoint=None)
 
     # TODO: this is a hack -- move to actually initializing the model with
     # TODO:   encoders and decoders
@@ -166,6 +174,10 @@ def main(opt):
     decoders = nn.ModuleList(decoders.values())
     model.decoder_ids = decoder_ids
     model.decoders = decoders
+
+    # we attach these to the model for persistence
+    model.src_vocabs = src_vocabs
+    model.tgt_vocabs = tgt_vocabs
 
     model.generators = nn.ModuleList(generators.values())
 

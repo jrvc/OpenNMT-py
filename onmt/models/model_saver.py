@@ -82,6 +82,7 @@ class ModelSaverBase(object):
         """
         raise NotImplementedError()
 
+
 # WORKING: update this class to support multi-enc, multi-dec
 class ModelSaver(ModelSaverBase):
     """
@@ -110,8 +111,14 @@ class ModelSaver(ModelSaverBase):
             'model': model_state_dict,
             #'generator': generator_state_dict,
             'vocab': onmt.inputters.save_fields_to_vocab(self.fields),
+            # WORKING: updating serialization for multi enc-dec
+            'src_vocabs': self.model.encoder_ids,
+            'tgt_vocabs': self.model.decoder_ids,
+            'encoder_ids': self.model.tgt_vocabs,
+            'decoder_ids': self.model.src_vocabs,
             'opt': self.model_opt,
             'optim': self.optim,
+            'whole_model': self.model
         }
 
         logger.info("Saving checkpoint %s_step_%d.pt" % (self.base_path, step))
