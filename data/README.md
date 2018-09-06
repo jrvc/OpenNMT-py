@@ -25,6 +25,35 @@ python $ONMT/train.py \
   -learning_rate 0.001 \
   2>&1 | tee -a multi30k-train.log
 
+# train multi-enc/dec model with all Multi30k directions
+ONMT=~/projects/mtm/OpenNMT-py
+DATADIR=~/projects/mtm/sample_data
+python $ONMT/train.py \
+  -data $DATADIR/de-cs/data $DATADIR/en-cs/data $DATADIR/fr-cs/data $DATADIR/cs-en/data $DATADIR/de-en/data $DATADIR/fr-en/data $DATADIR/cs-de/data $DATADIR/en-de/data $DATADIR/fr-de/data $DATADIR/cs-fr/data $DATADIR/de-fr/data $DATADIR/en-fr/data \
+  -src_tgt de-cs en-cs fr-cs cs-en de-en fr-en cs-de en-de fr-de cs-fr de-fr en-fr \
+  -rnn_size 128 \
+  -word_vec_size 64 \
+  -layers 1 \
+  -train_steps 10000 \
+  -valid_steps 500 \
+  -optim adam \
+  -learning_rate 0.001 \
+  -batch_size 128 \
+  -gpuid 0 \
+  2>&1 | tee -a multi30k-all-train.log
+
+
+# translating from a multi-source/target model
+SRC_LANG=en
+TGT_LANG=de
+TEST_DATADIR=~/projects/mtm/multi30k/dataset/data/task1/tok
+python translate.py \
+  -model model_step_10000.pt \
+  -src_lang $SRC_LANG \
+  -src $TEST_DATADIR/test_2017_flickr.lc.norm.tok.${SRC_LANG} \
+  -tgt_lang $TGT_LANG \
+  -verbose
+
 ```
 
 #### Getting a toy multi source/target dataset

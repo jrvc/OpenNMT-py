@@ -48,14 +48,14 @@ def build_trainer(opt, model, fields, optim, data_type,
         train_losses[tgt_lang] = \
             build_loss_from_generator_and_vocab(
                 gen,
-                tgt_vocabs[tgt_lang].vocab,
+                tgt_vocabs[tgt_lang],
                 opt,
                 train=True
         )
         valid_losses[tgt_lang] = \
             build_loss_from_generator_and_vocab(
                 gen,
-                tgt_vocabs[tgt_lang].vocab,
+                tgt_vocabs[tgt_lang],
                 opt,
                 train=False
             )
@@ -184,7 +184,7 @@ class Trainer(object):
             setattr(batch, 'src_lang', src_lang)
             setattr(batch, 'tgt_lang', tgt_lang)
 
-            # CHRIS: note this may not work for multi-gpu or accumulation
+            # CHRIS: note this may not work yet for multi-gpu or accumulation
             #if self.n_gpu == 0 or (i % self.n_gpu == self.gpu_rank):
             if self.n_gpu == 0 or (step % self.n_gpu == self.gpu_rank):
                 if self.gpu_verbose_level > 1:
