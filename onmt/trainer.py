@@ -13,13 +13,20 @@ from __future__ import division
 
 import random
 
+from collections import OrderedDict
+
 import onmt.inputters as inputters
 import onmt.utils
+
+from onmt.utils.loss import build_loss_from_generator_and_vocab
 
 from onmt.utils.logging import logger
 
 
-def build_trainer(opt, model, fields, optim, data_type, model_saver=None):
+def build_trainer(opt, model, fields, optim, data_type,
+                  generators,
+                  tgt_vocabs,
+                  model_saver=None):
     """
     Simplify `Trainer` creation based on user `opt`s*
 
@@ -33,12 +40,25 @@ def build_trainer(opt, model, fields, optim, data_type, model_saver=None):
         model_saver(:obj:`onmt.models.ModelSaverBase`): the utility object
             used to save the model
     """
-    # Chris: needs to be changed to `train_losses`, one for every decoder
 
-    train_loss = onmt.utils.loss.build_loss_compute(
-        model, fields["tgt"].vocab, opt)
-    valid_loss = onmt.utils.loss.build_loss_compute(
-        model, fields["tgt"].vocab, opt, train=False)
+    # Chris: one loss for every decoder
+    train_losses = OrderedDict()
+    valid_losses = OrderedDict()
+    for tgt_lang, gen in generators.items():
+        train_losses[tgt_lang] = \
+            build_loss_from_generator_and_vocab(
+                gen,
+                tgt_vocabs[tgt_lang],
+                opt,
+                train=True
+        )
+        valid_losses[tgt_lang] = \
+            build_loss_from_generator_and_vocab(
+                gen,
+                tgt_vocabs[tgt_lang],
+                opt,
+                train=False
+            )
 
     trunc_size = opt.truncated_decoder  # Badly named...
     shard_size = opt.max_generator_batches
@@ -49,7 +69,7 @@ def build_trainer(opt, model, fields, optim, data_type, model_saver=None):
     gpu_verbose_level = opt.gpu_verbose_level
 
     report_manager = onmt.utils.build_report_manager(opt)
-    trainer = onmt.Trainer(model, train_loss, valid_loss, optim, trunc_size,
+    trainer = onmt.Trainer(model, train_losses, valid_losses, optim, trunc_size,
                            shard_size, data_type, norm_method,
                            grad_accum_count, n_gpu, gpu_rank,
                            gpu_verbose_level, report_manager,
@@ -82,14 +102,14 @@ class Trainer(object):
                 Thus nothing will be saved if this parameter is None
     """
 
-    def __init__(self, model, train_loss, valid_loss, optim,
+    def __init__(self, model, train_losses, valid_losses, optim,
                  trunc_size=0, shard_size=32, data_type='text',
                  norm_method="sents", grad_accum_count=1, n_gpu=1, gpu_rank=1,
                  gpu_verbose_level=0, report_manager=None, model_saver=None):
         # Basic attributes.
         self.model = model
-        self.train_loss = train_loss
-        self.valid_loss = valid_loss
+        self.train_losses = train_losses
+        self.valid_losses = valid_losses
         self.optim = optim
         self.trunc_size = trunc_size
         self.shard_size = shard_size
@@ -136,7 +156,6 @@ class Trainer(object):
         true_batchs = []
         accum = 0
         normalization = 0
-        # train_iter = train_iter_fct()
 
         total_stats = onmt.utils.Statistics()
         report_stats = onmt.utils.Statistics()
@@ -149,9 +168,6 @@ class Trainer(object):
         while step <= train_steps:
 
             reduce_counter = 0
-            # TODO: how to attach the source and target languages to the batch?
-            # WORKING: maintain a dict of train funcs, one for each language pair
-            # for i, batch in enumerate(train_iter):
             src_lang, tgt_lang = random.choice(list(train_iters.keys()))
 
             try:
@@ -179,7 +195,7 @@ class Trainer(object):
 
                 if self.norm_method == "tokens":
                     num_tokens = batch.tgt[1:].ne(
-                        self.train_loss.padding_idx).sum()
+                        self.train_losses[tgt_lang].padding_idx).sum()
                     normalization += num_tokens.item()
                 else:
                     normalization += batch.batch_size
@@ -265,24 +281,14 @@ class Trainer(object):
             tgt = inputters.make_features(batch, 'tgt')
 
             # F-prop through the model.
-            """
-            import ipdb; ipdb.set_trace(context=5)
-            if not(self.model.name == 'MultiTaskModel'):
-                outputs, attns, _ = self.model(src, tgt, src_lengths)
-            else:
-                outputs, attns, _ = self.model(src, tgt,
-                                batch.src_lang,
-                                batch.tgt_lang,
-                                src_lengths,
-                                dec_state)
-            """
             outputs, attns, _ = self.model(src, tgt,
                             batch.src_lang,
                             batch.tgt_lang,
                             src_lengths)
             # Compute loss.
-            batch_stats = self.valid_loss.monolithic_compute_loss(
-                batch, outputs, attns)
+            batch_stats = \
+                self.valid_losses[batch.tgt_lang].monolithic_compute_loss(
+                    batch, outputs, attns)
 
             # Update statistics.
             stats.update(batch_stats)
@@ -325,8 +331,6 @@ class Trainer(object):
                 if self.grad_accum_count == 1:
                     self.model.zero_grad()
 
-                # Chris: self.model will handle selecting the correct encoder
-                # Chris: and decoder, but it won't select the right generator
                 outputs, attns, dec_state = \
                     self.model(src, tgt,
                                batch.src_lang,
@@ -335,9 +339,12 @@ class Trainer(object):
                                dec_state)
 
                 # 3. Compute loss in shards for memory efficiency.
-                batch_stats = self.train_loss.sharded_compute_loss(
-                    batch, outputs, attns, j,
-                    trunc_size, self.shard_size, normalization)
+                # Chris: note the loss is different for different decoders
+                batch_stats = \
+                    self.train_losses[batch.tgt_lang].sharded_compute_loss(
+                        batch, outputs, attns, j,
+                        trunc_size, self.shard_size, normalization)
+
                 total_stats.update(batch_stats)
                 report_stats.update(batch_stats)
 

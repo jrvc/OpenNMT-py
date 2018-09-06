@@ -103,7 +103,9 @@ def main(opt):
     # Loop to create encoders, decoders, and generators
     encoders = OrderedDict()
     decoders = OrderedDict()
+
     generators = OrderedDict()
+    tgt_vocabs = OrderedDict()
 
     for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
         src_lang, tgt_lang = src_tgt_lang.split('-')
@@ -130,6 +132,7 @@ def main(opt):
         decoder, generator = build_decoder_and_generator(model_opt, fields)
 
         decoders[tgt_lang] = decoder
+        tgt_vocabs[tgt_lang] = fields['tgt'].vocab
         generators[tgt_lang] = generator
 
         # add this dataset iterator to the training iterators
@@ -145,10 +148,11 @@ def main(opt):
 
     # build the model with all of the encoders and all of the decoders
     # note here we just replace the encoders of the final model
-    # WORKING: don't call build model at all, new model creation logic
+    # TODO: don't call build model at all, new model creation logic here
     model = build_model(model_opt, opt, fields, checkpoint)
 
-    # TODO: this is a hack which will only work for multi-encoder
+    # TODO: this is a hack -- move to actually initializing the model with
+    # TODO:   encoders and decoders
     encoder_ids = {lang_code: idx
                    for lang_code, idx
                    in zip(encoders.keys(), range(len(list(encoders.keys()))))}
@@ -162,10 +166,6 @@ def main(opt):
     decoders = nn.ModuleList(decoders.values())
     model.decoder_ids = decoder_ids
     model.decoders = decoders
-
-    # WORKING: add logic for multi decoder and multi generator
-    # WORKING: add generators and a single, shared loss
-    # WORKING: check logic for shared loss
 
     if len(opt.gpuid) > 0:
         model.to('cuda')
@@ -185,7 +185,8 @@ def main(opt):
     model_saver = build_model_saver(model_opt, opt, model, fields, optim)
 
     trainer = build_trainer(
-        opt, model, fields, optim, data_type, model_saver=model_saver)
+        opt, model, fields, optim, data_type, generators, tgt_vocabs,
+        model_saver=model_saver)
 
     trainer.train(train_iter_fcts, valid_iter_fcts, opt.train_steps,
                   opt.valid_steps)
