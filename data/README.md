@@ -9,6 +9,22 @@
 ```
 # multi-task
 python train.py -data data/data data/data -src_tgt en-de fr-de -save_model /tmp/test_multitask -rnn_size 100 -word_vec_size 50 -layers 1 -train_steps 100 -optim adam  -learning_rate 0.001
+
+# run multi-task with multi30k dataset (preparation instructions below)
+ONMT=~/projects/mtm/OpenNMT-py
+DATADIR=~/projects/mtm/sample_data
+python $ONMT/train.py \
+  -data $DATADIR/cs-en/data $DATADIR/de-en/data $DATADIR/fr-en/data \
+  -src_tgt cs-en de-en fr-en \
+  -rnn_size 128 \
+  -word_vec_size 64 \
+  -layers 1 \
+  -train_steps 10000 \
+  -valid_steps 500 \
+  -optim adam \
+  -learning_rate 0.001 \
+  2>&1 | tee -a multi30k-train.log
+
 ```
 
 #### Getting a toy multi source/target dataset
