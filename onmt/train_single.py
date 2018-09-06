@@ -167,29 +167,16 @@ def main(opt):
     model.decoder_ids = decoder_ids
     model.decoders = decoders
 
-    generators = nn.ModuleList(generators.values())
+    model.generators = nn.ModuleList(generators.values())
 
     if len(opt.gpuid) > 0:
         model.to('cuda')
 
     # Load the model states from checkpoint or initialize them.
+    # TODO: add logic for parameter initialization?
     if checkpoint is not None:
         model.load_state_dict(checkpoint['model'])
         #generator.load_state_dict(checkpoint['generator'])
-
-    # else:
-    #     if model_opt.param_init != 0.0:
-    #         for p in model.parameters():
-    #             p.data.uniform_(-model_opt.param_init, model_opt.param_init)
-    #         for p in generator.parameters():
-    #             p.data.uniform_(-model_opt.param_init, model_opt.param_init)
-    #     if model_opt.param_init_glorot:
-    #         for p in model.parameters():
-    #             if p.dim() > 1:
-    #                 xavier_uniform_(p)
-    #         for p in generator.parameters():
-    #             if p.dim() > 1:
-    #                 xavier_uniform_(p)
 
     n_params, enc, dec = _tally_parameters(model)
     logger.info('encoder: %d' % enc)
