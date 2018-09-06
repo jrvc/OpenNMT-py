@@ -97,8 +97,8 @@ def main(opt):
         model_opt = opt
 
     # For each dataset, load fields generated from preprocess phase.
-    train_iter_fcts = {}
-    valid_iter_fcts = {}
+    train_iter_fcts = OrderedDict()
+    valid_iter_fcts = OrderedDict()
 
     # Loop to create encoders, decoders, and generators
     encoders = OrderedDict()
