@@ -36,9 +36,14 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
     else:
         import ipdb;ipdb.set_trace()
         fields, model, model_opt = \
-            onmt.model_builder.load_test_model(opt, dummy_opt.__dict__)
+           onmt.model_builder.load_test_model(opt, dummy_opt.__dict__)
 
+        # Chris: WORKING: overwrite model and fields
         model = onmt.model_builder.load_test_multitask_model(opt)
+        fields = inputters.inputter.load_fields_from_vocab(
+            {'src': model.src_vocabs['de'],
+             'tgt': model.tgt_vocabs['en']})
+
 
     scorer = onmt.translate.GNMTGlobalScorer(opt.alpha,
                                              opt.beta,
@@ -183,20 +188,7 @@ class Translator(object):
 
         if batch_size is None:
             raise ValueError("batch_size must be set")
-        #data = inputters.build_dataset(self.fields,
-        #                               self.data_type,
-        #                               src_path=src_path,
-        #                               src_data_iter=src_data_iter,
-        #                               tgt_path=tgt_path,
-        #                               tgt_data_iter=tgt_data_iter,
-        #                               src_dir=src_dir,
-        #                               sample_rate=self.sample_rate,
-        #                               window_size=self.window_size,
-        #                               window_stride=self.window_stride,
-        #                               window=self.window,
-        #                               use_filter_pred=self.use_filter_pred)
-
-        data = inputters.build_dataset({'src': self.model.src_vocabs['de'], 'tgt': self.model.tgt_vocabs['en']},
+        data = inputters.build_dataset(self.fields,
                                        self.data_type,
                                        src_path=src_path,
                                        src_data_iter=src_data_iter,
@@ -540,6 +532,7 @@ class Translator(object):
             _, src_lengths = batch.src
 
         # enc_states, memory_bank = self.model.encoder(src, src_lengths)
+        # TODO: hard-coded encoder
         enc_states, memory_bank = self.model.encoders[self.model.encoder_ids['de']](src, src_lengths)
         dec_states = self.model.decoders[self.model.decoder_ids['en']].init_decoder_state(
             src, memory_bank, enc_states)
@@ -594,12 +587,14 @@ class Translator(object):
             # (b) Compute a vector of batch x beam word scores.
             if not self.copy_attn:
                 # Chris: note model.generators are in the same order as model.decoders
+                # Chris: TODO: hard-coded decoder key
                 out = self.model.generators[self.model.decoder_ids['en']].forward(dec_out).data
                 out = unbottle(out)
                 # beam x tgt_vocab
                 beam_attn = unbottle(attn["std"])
             else:
                 # Chris: note model.generators are in the same order as model.decoders
+                # Chris: TODO: hard-coded decoder key
                 out = self.model.generators[self.model.decoder_ids['en']].forward(dec_out,
                                                    attn["copy"].squeeze(0),
                                                    src_map)
@@ -664,8 +659,7 @@ class Translator(object):
         dec_out, _, _ = self.model.decoder(
             tgt_in, memory_bank, dec_states, memory_lengths=src_lengths)
 
-        #tgt_pad = self.fields["tgt"].vocab.stoi[inputters.PAD_WORD]
-        tgt_pad = self.tgt_vocabs['de'].stoi[inputters.PAD_WORD]
+        tgt_pad = self.fields["tgt"].vocab.stoi[inputters.PAD_WORD]
         for dec, tgt in zip(dec_out, batch.tgt[1:].data):
             # Log prob of each word.
             out = self.model.generator.forward(dec)

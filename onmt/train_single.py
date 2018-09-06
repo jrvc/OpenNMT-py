@@ -133,10 +133,14 @@ def main(opt):
         decoder, generator = build_decoder_and_generator(model_opt, fields)
 
         decoders[tgt_lang] = decoder
-        #src_vocabs[src_lang] = fields['src'].vocab
-        #tgt_vocabs[tgt_lang] = fields['tgt'].vocab
-        src_vocabs[src_lang] = fields['src']
-        tgt_vocabs[tgt_lang] = fields['tgt']
+
+        # TODO: fields from vocab?
+        src_vocabs[src_lang] = fields['src'].vocab
+        tgt_vocabs[tgt_lang] = fields['tgt'].vocab
+
+        #src_vocabs[src_lang] = fields['src']
+        #tgt_vocabs[tgt_lang] = fields['tgt']
+
         generators[tgt_lang] = generator
 
         # add this dataset iterator to the training iterators

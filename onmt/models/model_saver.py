@@ -112,10 +112,6 @@ class ModelSaver(ModelSaverBase):
             #'generator': generator_state_dict,
             'vocab': onmt.inputters.save_fields_to_vocab(self.fields),
             # WORKING: updating serialization for multi enc-dec
-            'src_vocabs': self.model.encoder_ids,
-            'tgt_vocabs': self.model.decoder_ids,
-            'encoder_ids': self.model.tgt_vocabs,
-            'decoder_ids': self.model.src_vocabs,
             'opt': self.model_opt,
             'optim': self.optim,
             'whole_model': self.model
