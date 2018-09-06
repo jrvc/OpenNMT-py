@@ -142,6 +142,9 @@ def preprocess_opts(parser):
                        help="""Type of the source input.
                        Options are [text|img].""")
 
+    group.add_argument('-train_dataset_prefixes', help="""List of prefixes for data.train.X.pt files to create vocabulary from.
+    The vocabulary will be stored to data.vocab.pt.""")
+
     group.add_argument('-train_src', required=True,
                        help="Path to the training source data")
     group.add_argument('-train_tgt', required=True,
