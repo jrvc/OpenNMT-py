@@ -1,7 +1,14 @@
 #!/bin/bash
 
+# Usage: ./demo-translation-client.sh --from en [cs de fr] --to cs [fr de en] text to translate
+# or ./demo-translation-client.sh -f en text to translate
+# (if no --from or --to options are selected, then all the directions are
+# used)
+
+
 SERVER=u-pl0.ms.mff.cuni.cz:5000
 
+# the server has encode-decoder pairs loaded in this order, indexing from 0:
 #		de-cs en-cs fr-cs cs-en de-en fr-en cs-de en-de fr-de cs-fr de-fr en-fr
 
 lang_pair_to_id() {
