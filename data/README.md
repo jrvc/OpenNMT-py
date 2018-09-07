@@ -47,7 +47,7 @@ python $ONMT/train.py \
 SRC_LANG=en
 TGT_LANG=de
 TEST_DATADIR=~/projects/mtm/multi30k/dataset/data/task1/tok
-python translate.py \
+python translate_multimodel.py \
   -model model_step_10000.pt \
   -src_lang $SRC_LANG \
   -src $TEST_DATADIR/test_2017_flickr.lc.norm.tok.${SRC_LANG} \
