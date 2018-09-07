@@ -260,7 +260,7 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
     device = torch.device("cuda" if gpu else "cpu")
 
     # Chris: a different model type for multi-task models
-    model = onmt.models.MultiTaskModel(encoder, decoder)
+    model = onmt.models.MultiTaskModel(encoder, decoder, model_opt)
     model.model_type = model_opt.model_type
 
     # Build Generator.
@@ -322,4 +322,3 @@ def build_model(model_opt, opt, fields, checkpoint):
                              use_gpu(opt), checkpoint)
     logger.info(model)
     return model
-

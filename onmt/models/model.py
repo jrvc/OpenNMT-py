@@ -3,6 +3,7 @@ import torch.nn as nn
 import copy
 import random
 
+from onmt.attention_bridge import AttentionBridge
 
 class MultiTaskModel(nn.Module):
     """
@@ -15,13 +16,16 @@ class MultiTaskModel(nn.Module):
       multi<gpu (bool): setup for multigpu support
     """
 
-    def __init__(self, encoder, decoder, multigpu=False):
+    def __init__(self, encoder, decoder, model_opt, multigpu=False):
         self.multigpu = multigpu
         super(MultiTaskModel, self).__init__()
 
         # Chris: these fields currently get initialized externally
         self.encoder_ids = None
         self.encoders = None
+
+        self.use_attention_bridge = model_opt.use_attention_bridge
+        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads)#, model_opt.dropout)
 
         self.decoder_ids = None
         self.decoders = None
@@ -59,6 +63,11 @@ class MultiTaskModel(nn.Module):
         enc_state = \
             decoder.init_decoder_state(src, memory_bank, enc_final)
 
+        # Implement attention bridge/compound attention
+        if self.use_attention_bridge:
+            enc_final, memory_bank = self.attention_bridge(memory_bank)
+
+
         decoder_outputs, dec_state, attns = \
             decoder(tgt, memory_bank,
                     enc_state if dec_state is None
@@ -72,7 +81,6 @@ class MultiTaskModel(nn.Module):
         return decoder_outputs, attns, dec_state
 
 
-from onmt.attention_bridge import AttentionBridge 
 
 class NMTModel(nn.Module):
     """
