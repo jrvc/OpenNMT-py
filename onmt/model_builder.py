@@ -133,7 +133,9 @@ def load_test_multitask_model(opt, model_path=None):
         model_path = opt.models[0]
     checkpoint = torch.load(model_path,
                             map_location=lambda storage, loc: storage)
-    return checkpoint['whole_model']
+    model = checkpoint['whole_model']
+    model.eval()
+    return model
 
 
 def load_test_model(opt, dummy_opt, model_path=None):

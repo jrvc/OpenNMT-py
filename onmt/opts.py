@@ -430,7 +430,7 @@ def translate_opts(parser):
                        'for ensemble decoding.')
     
     # src and tgt langs for multi-encoder and multi-decoder models
-    group = parser.add_argument_group('Source and Target Langauges')
+    group = parser.add_argument_group('Source and Target Languages')
     group.add_argument('-src_lang', required=True,
                        help="The 2-character source language code")
     group.add_argument('-tgt_lang', required=True,
