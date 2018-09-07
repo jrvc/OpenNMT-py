@@ -192,11 +192,11 @@ def main(opt):
         model.to('cuda')
 
     # Load the model states from checkpoint or initialize them.
-    # TODO: add logic for parameter initialization?
     if checkpoint is not None:
         model.load_state_dict(checkpoint['model'])
         #generator.load_state_dict(checkpoint['generator'])
     else:
+        logger.info("Initializing model parameters")
         if model_opt.param_init != 0.0:
             for p in model.parameters():
                 p.data.uniform_(-model_opt.param_init, model_opt.param_init)
