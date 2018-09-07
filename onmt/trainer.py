@@ -184,7 +184,7 @@ class Trainer(object):
             setattr(batch, 'src_lang', src_lang)
             setattr(batch, 'tgt_lang', tgt_lang)
 
-            # CHRIS: note this may not work for multi-gpu or accumulation
+            # CHRIS: note this may not work yet for multi-gpu or accumulation
             #if self.n_gpu == 0 or (i % self.n_gpu == self.gpu_rank):
             if self.n_gpu == 0 or (step % self.n_gpu == self.gpu_rank):
                 if self.gpu_verbose_level > 1:

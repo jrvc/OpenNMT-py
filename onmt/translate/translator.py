@@ -19,6 +19,7 @@ import onmt.decoders.ensemble
 
 
 def build_translator(opt, report_score=True, logger=None, out_file=None):
+
     if out_file is None:
         out_file = codecs.open(opt.output, 'w+', 'utf-8')
 
@@ -29,13 +30,21 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
     opts.model_opts(dummy_parser)
     dummy_opt = dummy_parser.parse_known_args([])[0]
 
+    # TODO: support ensembles and single models
     if len(opt.models) > 1:
         # use ensemble decoding if more than one model is specified
         fields, model, model_opt = \
             onmt.decoders.ensemble.load_test_model(opt, dummy_opt.__dict__)
     else:
         fields, model, model_opt = \
-            onmt.model_builder.load_test_model(opt, dummy_opt.__dict__)
+           onmt.model_builder.load_test_model(opt, dummy_opt.__dict__)
+
+        # Chris: Note we currently just overwrite model and fields
+        model = onmt.model_builder.load_test_multitask_model(opt)
+        fields = inputters.inputter.load_fields_from_vocab(
+            {'src': model.src_vocabs[opt.src_lang],
+             'tgt': model.tgt_vocabs[opt.tgt_lang]})
+
 
     scorer = onmt.translate.GNMTGlobalScorer(opt.alpha,
                                              opt.beta,
@@ -48,7 +57,7 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
                         "ignore_when_blocking", "dump_beam", "report_bleu",
                         "data_type", "replace_unk", "gpu", "verbose", "fast"]}
 
-    translator = Translator(model, fields, global_scorer=scorer,
+    translator = Translator(model, opt.src_lang, opt.tgt_lang, fields, global_scorer=scorer,
                             out_file=out_file, report_score=report_score,
                             copy_attn=model_opt.copy_attn, logger=logger,
                             **kwargs)
@@ -77,6 +86,8 @@ class Translator(object):
 
     def __init__(self,
                  model,
+                 src_lang,
+                 tgt_lang,
                  fields,
                  beam_size,
                  n_best=1,
@@ -108,6 +119,8 @@ class Translator(object):
         self.cuda = gpu > -1
 
         self.model = model
+        self.src_lang = src_lang
+        self.tgt_lang = tgt_lang
         self.fields = fields
         self.n_best = n_best
         self.max_length = max_length
@@ -523,8 +536,9 @@ class Translator(object):
         if data_type == 'text':
             _, src_lengths = batch.src
 
-        enc_states, memory_bank = self.model.encoder(src, src_lengths)
-        dec_states = self.model.decoder.init_decoder_state(
+        # enc_states, memory_bank = self.model.encoder(src, src_lengths)
+        enc_states, memory_bank = self.model.encoders[self.model.encoder_ids[self.src_lang]](src, src_lengths)
+        dec_states = self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_decoder_state(
             src, memory_bank, enc_states)
 
         if src_lengths is None:
@@ -565,7 +579,7 @@ class Translator(object):
             inp = inp.unsqueeze(2)
 
             # Run one step.
-            dec_out, dec_states, attn = self.model.decoder(
+            dec_out, dec_states, attn = self.model.decoders[self.model.decoder_ids[self.tgt_lang]](
                 inp, memory_bank, dec_states,
                 memory_lengths=memory_lengths,
                 step=i)
@@ -576,12 +590,14 @@ class Translator(object):
 
             # (b) Compute a vector of batch x beam word scores.
             if not self.copy_attn:
-                out = self.model.generator.forward(dec_out).data
+                # Chris: note model.generators are in the same order as model.decoders
+                out = self.model.generators[self.model.decoder_ids[self.tgt_lang]].forward(dec_out).data
                 out = unbottle(out)
                 # beam x tgt_vocab
                 beam_attn = unbottle(attn["std"])
             else:
-                out = self.model.generator.forward(dec_out,
+                # Chris: note model.generators are in the same order as model.decoders
+                out = self.model.generators[self.model.decoder_ids[self.tgt_lang]].forward(dec_out,
                                                    attn["copy"].squeeze(0),
                                                    src_map)
                 # beam x (tgt_vocab + extra_vocab)
