@@ -126,8 +126,6 @@ def build_decoder(opt, embeddings):
                              opt.reuse_copy_attn)
 
 
-# WORKING: rebuild the model in the same way we did for training
-# WORKING: we need to follow the exact same steps from training to rebuild the model
 def load_test_multitask_model(opt, model_path=None):
     if model_path is None:
         model_path = opt.models[0]
