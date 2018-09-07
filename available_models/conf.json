@@ -1,0 +1,150 @@
+{
+    "models_root": ".",
+    "models": [
+        {
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "de",
+                "tgt_lang": "cs"
+            }
+        },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "en",
+                "tgt_lang": "cs"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "fr",
+                "tgt_lang": "cs"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "cs",
+                "tgt_lang": "en"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "de",
+                "tgt_lang": "en"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "fr",
+                "tgt_lang": "en"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "cs",
+                "tgt_lang": "de"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "en",
+                "tgt_lang": "de"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "fr",
+                "tgt_lang": "de"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "cs",
+                "tgt_lang": "fr"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "de",
+                "tgt_lang": "fr"
+            }
+    },
+	{
+            "model": "model_step_50000.pt",
+            "timeout": 600,
+            "on_timeout": "to_cpu",
+            "load": true,
+            "opt": {
+                "beam_size": 5,
+                "multimodel": 1,
+                "src_lang": "en",
+                "tgt_lang": "fr"
+            }
+    }
+	]
+
+}
