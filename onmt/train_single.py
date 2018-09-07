@@ -9,6 +9,7 @@ import os
 import random
 import torch
 import torch.nn as nn
+from torch.nn.init import xavier_uniform_
 
 import onmt.opts as opts
 
@@ -191,10 +192,25 @@ def main(opt):
         model.to('cuda')
 
     # Load the model states from checkpoint or initialize them.
-    # TODO: add logic for parameter initialization?
     if checkpoint is not None:
         model.load_state_dict(checkpoint['model'])
         #generator.load_state_dict(checkpoint['generator'])
+    else:
+        logger.info("Initializing model parameters")
+        if model_opt.param_init != 0.0:
+            for p in model.parameters():
+                p.data.uniform_(-model_opt.param_init, model_opt.param_init)
+            for generator in generators.values():
+                for p in generator.parameters():
+                    p.data.uniform_(-model_opt.param_init, model_opt.param_init)
+        if model_opt.param_init_glorot:
+            for p in model.parameters():
+                if p.dim() > 1:
+                    xavier_uniform_(p)
+            for generator in generators.values():
+                for p in generator.parameters():
+                    if p.dim() > 1:
+                        xavier_uniform_(p)
 
     n_params, enc, dec = _tally_parameters(model)
     logger.info('encoder: %d' % enc)

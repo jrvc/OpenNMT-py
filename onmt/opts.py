@@ -428,14 +428,6 @@ def translate_opts(parser):
                        help='Path to model .pt file(s). '
                        'Multiple models can be specified, '
                        'for ensemble decoding.')
-    
-    # src and tgt langs for multi-encoder and multi-decoder models
-    group = parser.add_argument_group('Source and Target Languages')
-    group.add_argument('-src_lang', required=True,
-                       help="The 2-character source language code")
-    group.add_argument('-tgt_lang', required=True,
-                       help="The 2-character target language code")
-    
 
     group = parser.add_argument_group('Data')
     group.add_argument('-data_type', default="text",
@@ -537,6 +529,15 @@ def translate_opts(parser):
                        help='Window stride for spectrogram in seconds')
     group.add_argument('-window', default='hamming',
                        help='Window type for spectrogram generation')
+
+
+def translate_multimodel(parser):
+    # src and tgt langs for multi-encoder and multi-decoder models
+    group = parser.add_argument_group('Source and Target Languages')
+    group.add_argument('-src_lang', required=True,
+                       help="The 2-character source language code")
+    group.add_argument('-tgt_lang', required=True,
+                       help="The 2-character target language code")
 
 
 def add_md_help_argument(parser):

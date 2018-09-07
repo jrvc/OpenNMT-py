@@ -113,6 +113,7 @@ class TranslationServer():
                 model_id += 1
             self.next_id = model_id + 1
         print("Pre-loading model %d" % model_id)
+        print("opt: %s" % str(opt))
         model = ServerModel(opt, model_id, **model_kwargs)
         self.models[model_id] = model
 
@@ -199,6 +200,17 @@ class ServerModel:
         sys.argv = sys.argv[:1]
         parser = argparse.ArgumentParser()
         onmt.opts.translate_opts(parser)
+
+        group = parser.add_argument_group('Server Arguments')
+        group.add_argument("-multimodel", type=int, default=0)
+
+        # Dominik's extension for multi-enc/dec model
+        if 'multimodel' in opt and opt['multimodel'] == 1:
+            onmt.opts.translate_multimodel(parser)
+            if not "src_lang" in opt or not "tgt_lang" in opt:
+                raise ValueError("missing src_lang and tgt_lang argument")
+            sys.argv += ["-src_lang", opt["src_lang"], "-tgt_lang", opt["tgt_lang"]]
+
 
         models = opt['models']
         if not isinstance(models, (list, tuple)):
