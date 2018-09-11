@@ -529,6 +529,10 @@ def translate_opts(parser):
                        help='Window stride for spectrogram in seconds')
     group.add_argument('-window', default='hamming',
                        help='Window type for spectrogram generation')
+   # neural_interlingua options
+    group = parser.add_argument_group('Attention_bridge')
+    group.add_argument('-use_attention_bridge', type=bool, default=False,
+                       help="Use self-attention layer between enc and dec")
 
 
 def translate_multimodel(parser):

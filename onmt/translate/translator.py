@@ -59,7 +59,7 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
 
     translator = Translator(model, opt.src_lang, opt.tgt_lang, fields, global_scorer=scorer,
                             out_file=out_file, report_score=report_score,
-                            copy_attn=model_opt.copy_attn, logger=logger,
+                            copy_attn=model_opt.copy_attn, logger=logger, use_attention_bridge=opt.use_attention_bridge,
                             **kwargs)
     return translator
 
@@ -113,7 +113,8 @@ class Translator(object):
                  report_rouge=False,
                  verbose=False,
                  out_file=None,
-                 fast=False):
+                 fast=False,
+                 use_attention_bridge=False):
         self.logger = logger
         self.gpu = gpu
         self.cuda = gpu > -1
@@ -145,6 +146,7 @@ class Translator(object):
         self.report_bleu = report_bleu
         self.report_rouge = report_rouge
         self.fast = fast
+        self.use_attention_bridge=use_attention_bridge
 
         # for debugging
         self.beam_trace = self.dump_beam != ""
@@ -540,6 +542,10 @@ class Translator(object):
         enc_states, memory_bank = self.model.encoders[self.model.encoder_ids[self.src_lang]](src, src_lengths)
         dec_states = self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_decoder_state(
             src, memory_bank, enc_states)
+
+        # Implement attention bridge/compound attention
+        if self.use_attention_bridge:
+            enc_states, memory_bank = self.model.attention_bridge(memory_bank)
 
         if src_lengths is None:
             assert not isinstance(memory_bank, tuple), \
