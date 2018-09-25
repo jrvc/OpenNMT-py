@@ -531,8 +531,8 @@ def translate_opts(parser):
                        help='Window type for spectrogram generation')
    # neural_interlingua options
     group = parser.add_argument_group('Attention_bridge')
-    group.add_argument('-use_attention_bridge', type=bool, default=False,
-                       help="Use self-attention layer between enc and dec")
+    group.add_argument('-use_attention_bridge', action='store_true',
+                       help="""Use self-attention layer between enc and dec""")
 
 
 def translate_multimodel(parser):
