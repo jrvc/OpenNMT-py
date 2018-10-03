@@ -419,6 +419,9 @@ def train_opts(parser):
                        help="""Use self-attention layer between enc and dec""")
     group.add_argument('-attention_heads', type=int, default=4,
                       help="""Number of attention heads in attention brige""")
+    group.add_argument('-report_bleu', action='store_true',
+                       help="""Report bleu score after validation,
+                       call tools/multi-bleu.perl on command line""")
 
 def translate_opts(parser):
     """ Translation / inference options """
