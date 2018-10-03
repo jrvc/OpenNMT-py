@@ -254,7 +254,6 @@ class Trainer(object):
                             self._report_step(self.optim.learning_rate,
                                               step, valid_stats=valid_stats)
 
-                            import ipdb; ipdb.set_trace()
                             if self.report_bleu:
                                 from onmt.translate.translator import build_translator
                                 import argparse
