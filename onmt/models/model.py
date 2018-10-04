@@ -25,7 +25,8 @@ class MultiTaskModel(nn.Module):
         self.encoders = None
 
         self.use_attention_bridge = model_opt.use_attention_bridge
-        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads)#, model_opt.dropout)
+        if self.use_attention_bridge:
+            self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads)#, model_opt.dropout)
 
         self.decoder_ids = None
         self.decoders = None
