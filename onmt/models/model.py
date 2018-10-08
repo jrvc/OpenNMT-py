@@ -25,8 +25,11 @@ class MultiTaskModel(nn.Module):
         self.encoders = None
 
         self.use_attention_bridge = model_opt.use_attention_bridge
+        self.init_decoder = model_opt.init_decoder
         if self.use_attention_bridge:
-            self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads)#, model_opt.dropout)
+            self.attention_bridge = AttentionBridge(model_opt.rnn_size, 
+                                                    model_opt.attention_heads, 
+                                                    model_opt.dec_layers)#, model_opt.dropout)
 
         self.decoder_ids = None
         self.decoders = None
@@ -61,13 +64,20 @@ class MultiTaskModel(nn.Module):
         decoder = self.decoders[self.decoder_ids[tgt_task]]
 
         enc_final, memory_bank = encoder(src, lengths)
-        enc_state = \
-            decoder.init_decoder_state(src, memory_bank, enc_final)
 
         # Implement attention bridge/compound attention
         if self.use_attention_bridge:
             enc_final, memory_bank = self.attention_bridge(memory_bank)
 
+        # initialize decoder
+        assert self.init_decoder in ["attention_matrix", "rnn_final_state"], \
+        ("Unsupported decoder initialization %s" % (self.init_decoder))
+        if self.init_decoder == 'attention_matrix':
+            enc_state = \
+                self.attention_bridge.init_decoder_state(src, memory_bank, enc_final)
+        else:
+            enc_state = \
+                decoder.init_decoder_state(src, memory_bank, enc_final)
 
         decoder_outputs, dec_state, attns = \
             decoder(tgt, memory_bank,
@@ -99,7 +109,9 @@ class NMTModel(nn.Module):
         super(NMTModel, self).__init__()
         self.encoder = encoder
         self.use_attention_bridge = model_opt.use_attention_bridge
-        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads)#, model_opt.dropout)
+        self.attention_bridge = AttentionBridge(model_opt.rnn_size, 
+                                                    model_opt.attention_heads, 
+                                                    model_opt.dec_layers) #, model_opt.dropout)
         self.decoder = decoder
 
     def forward(self, src, tgt, lengths, dec_state=None):

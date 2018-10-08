@@ -422,6 +422,14 @@ def train_opts(parser):
     group.add_argument('-report_bleu', action='store_true',
                        help="""Report bleu score after validation,
                        call tools/multi-bleu.perl on command line""")
+    group.add_argument('-init_decoder', type=str, default="rnn_final_state",
+                       choices=['rnn_final_state', 'attention_matrix'],
+                       help="""Method to initialize decoder. With the final state
+                       of the decoder or with the avrg of the attention bridge.
+                       IMPORTANT: 
+                       Must choose attention_matrix if -encoder_type transformer
+                       Must chose rnn_final state if -use_attention_bridge is NOT activated """)
+
 
 def translate_opts(parser):
     """ Translation / inference options """
