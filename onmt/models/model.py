@@ -64,10 +64,15 @@ class MultiTaskModel(nn.Module):
         decoder = self.decoders[self.decoder_ids[tgt_task]]
 
         enc_final, memory_bank = encoder(src, lengths)
+        #import ipdb; ipdb.set_trace()
 
         # Implement attention bridge/compound attention
+        lstm_rnn_type =  str(type(decoder.rnn)).find('LSTM') > -1
         if self.use_attention_bridge:
+            if lstm_rnn_type:
+                rnn_final, rnn_memory_bank = enc_final, memory_bank
             enc_final, memory_bank = self.attention_bridge(memory_bank)
+        
         
         # initialize decoder
         if str(type(encoder)).find('transformer.TransformerEncoder') > -1:
@@ -75,12 +80,18 @@ class MultiTaskModel(nn.Module):
                ("""Unsupported decoder initialization '%s'. Use 
                 the 'attention matrix' option for the '-init_decoder'
                 flag when using a transformer encoder""" % (self.init_decoder))
-        if (self.init_decoder == 'attention_matrix'):
+        if lstm_rnn_type:
             enc_state = \
-                self.attention_bridge.init_decoder_state(src, memory_bank, enc_final)
+                decoder.init_decoder_state(src, rnn_memory_bank, rnn_final)
         else:
-            enc_state = \
-                decoder.init_decoder_state(src, memory_bank, enc_final)
+            if (self.init_decoder == 'attention_matrix'):
+                enc_state = \
+                    self.attention_bridge.init_decoder_state(src, memory_bank, enc_final)
+            else:
+                enc_state = \
+                    decoder.init_decoder_state(src, memory_bank, enc_final)
+
+
 
         decoder_outputs, dec_state, attns = \
             decoder(tgt, memory_bank,
