@@ -202,11 +202,7 @@ class LossComputeBase(nn.Module):
             :obj:`onmt.utils.Statistics`: validation loss statistics
 
         """
-        I = Variable(torch.zeros(batch.batch_size, attention_heads, attention_heads))
-        for i in range(batch.batch_size):
-            for j in range(attention_heads):
-                I.data[i][j][j] = 1
-
+        I = Variable(torch.stack([torch.eye(attention_heads) for i in range(batch.batch_size)]))
         I = I.cuda() if n_gpu >= 1 else I
 
         batch_stats = onmt.utils.Statistics()
