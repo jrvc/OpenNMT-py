@@ -17,6 +17,8 @@ from collections import OrderedDict
 
 import onmt.inputters as inputters
 import onmt.utils
+import subprocess
+import sys
 
 from onmt.utils.loss import build_loss_from_generator_and_vocab
 
@@ -67,13 +69,12 @@ def build_trainer(opt, model, fields, optim, data_type,
     n_gpu = len(opt.gpuid)
     gpu_rank = opt.gpu_rank
     gpu_verbose_level = opt.gpu_verbose_level
-    report_bleu=opt.report_bleu
 
     report_manager = onmt.utils.build_report_manager(opt)
-    trainer = onmt.Trainer(model, train_losses, valid_losses, optim, trunc_size,
+    trainer = onmt.Trainer(model, train_losses, valid_losses, optim, opt.attention_heads, trunc_size,
                            shard_size, data_type, norm_method,
                            grad_accum_count, n_gpu, gpu_rank,
-                           gpu_verbose_level, report_manager, report_bleu,
+                           gpu_verbose_level, report_manager,
                            opt.use_attention_bridge, model_saver=model_saver)
     return trainer
 
@@ -103,11 +104,10 @@ class Trainer(object):
                 Thus nothing will be saved if this parameter is None
     """
 
-    def __init__(self, model, train_losses, valid_losses, optim,
+    def __init__(self, model, train_losses, valid_losses, optim, attention_heads,
                  trunc_size=0, shard_size=32, data_type='text',
                  norm_method="sents", grad_accum_count=1, n_gpu=1, gpu_rank=1,
-                 gpu_verbose_level=0, report_manager=None, report_bleu=None,
-                 use_attention_bridge=False, model_saver=None):
+                 gpu_verbose_level=0, report_manager=None, use_attention_bridge=True, model_saver=None):
         # Basic attributes.
         self.model = model
         self.train_losses = train_losses
@@ -123,9 +123,9 @@ class Trainer(object):
         self.gpu_verbose_level = gpu_verbose_level
         self.report_manager = report_manager
         self.model_saver = model_saver
-        self.report_bleu = report_bleu
+        self.last_model = None
         self.use_attention_bridge = use_attention_bridge
-        self.last_model  = None
+        self.attention_heads = attention_heads
 
         assert grad_accum_count > 0
         if grad_accum_count > 1:
@@ -229,10 +229,6 @@ class Trainer(object):
                     true_batchs = []
                     accum = 0
                     normalization = 0
-
-                    if self.gpu_rank == 0:
-                        self._maybe_save(step)
-
                     if (step % valid_steps == 0):
                         for lang_pair in valid_iter_fcts.items():
                             valid_iter_fct = lang_pair[1]
@@ -254,37 +250,41 @@ class Trainer(object):
                             self._report_step(self.optim.learning_rate,
                                               step, valid_stats=valid_stats)
 
-                            if self.report_bleu:
-                                from onmt.translate.translator import build_translator
-                                import argparse
-                                parser = argparse.ArgumentParser(prog = 'translate.py', 
-                                                            description='train.py')
-                                src_tmp = 'src.tmp'
-                                out_tmp = 'out.tmp'
-                                onmt.opts.translate_opts(parser)
-                                dummy_opt = parser.parse_known_args(['-model', self.last_model,
-                                                            '-src', src_tmp,
-                                                            '-output', out_tmp ])[0]
-                                dummy_opt.use_attention_bridge = self.use_attention_bridge
-                                dummy_opt.src_lang, dummy_opt.tgt_lang = src_tgt
+                        self._maybe_save(step)
+                        """
+                        from onmt.translate.translator import build_translator
+                        import argparse
 
-                                translator = build_translator(dummy_opt, report_score=False)
-                                translator.translate(src_path=dummy_opt.src,
-                                                     tgt_path=dummy_opt.tgt,
-                                                     src_dir=None,
-                                                     batch_size=valid_iter.batch_size,
-                                                     attn_debug=False)
-                                #report BLEU
-                                import subprocess
-                                msg = translator._report_bleu('tgt.tmp')
-                                logger.info(msg)
-                                import os
-                                for file in ['src.tmp','tgt.tmp','out.tmp']:
-                                    os.remove(file)
+                        for lang_pair in valid_iter_fcts.items():
+                            src_tgt = lang_pair[0]
+                            src_langDEV, tgt_langDEV = src_tgt
+                            src_tmp = '/wrk/raganato/DONOTREMOVE/MULTI/EUROPARL/dev/test2000.tc.bpe.'+str(src_langDEV)
+                            out_tmp = '/wrk/raganato/DONOTREMOVE/MULTI/EUROPARL/model/baselineNIL/'+str(src_langDEV)+'-'+str(tgt_langDEV)+'/dev.txt'
 
+                            parser = argparse.ArgumentParser(prog='translate.py',
+                                                             description='train.py')
+                            onmt.opts.translate_opts(parser)
+                            dummy_opt = parser.parse_known_args(['-model', self.last_model,
+                                                                 '-src', src_tmp,
+                                                                 '-output', out_tmp])[0]
+                            dummy_opt.use_attention_bridge = self.use_attention_bridge
 
-
-
+                            dummy_opt.src_lang, dummy_opt.tgt_lang = src_tgt
+                            
+                            translator = build_translator(dummy_opt, report_score=False)
+                            translator.translate(src_path=dummy_opt.src,
+                                                 tgt_path=dummy_opt.tgt,
+                                                 src_dir=dummy_opt.src_dir,
+                                                 batch_size=256,
+                                                 attn_debug=False)
+                            original = '/wrk/raganato/DONOTREMOVE/MULTI/EUROPARL/dev/test2000.'+str(dummy_opt.tgt_lang)+'.detok'
+                            
+                            res = subprocess.check_output("bash /wrk/raganato/DONOTREMOVE/MULTI/EUROPARL/OpenNMT-py-neural-interlingua2InitAMNOTANH/models/evaluateDev.sh %s %s %s" % (dummy_opt.tgt_lang, out_tmp, original), shell=True).decode("utf-8")
+                            msg = res.strip()
+                            print(str(step)+" "+str(src_langDEV)+'-'+str(tgt_langDEV)+' '+str(msg), file=sys.stderr)
+                            print(str(step)+" "+str(src_langDEV)+'-'+str(tgt_langDEV)+' '+str(msg))
+                        print()
+                        """
                     step += 1
                     if step > train_steps:
                         break
@@ -307,21 +307,7 @@ class Trainer(object):
 
         stats = onmt.utils.Statistics()
 
-        first_iter=True
         for batch in valid_iter:
-            if first_iter and self.report_bleu:
-                import csv
-                exs_src = [sent.src for sent in batch.dataset.examples]
-                exs_tgt = [sent.tgt for sent in batch.dataset.examples]
-                # write tmp files
-                with open('src.tmp', "w") as output:
-                    writer = csv.writer(output, lineterminator='\n', delimiter=" ", quotechar='|')
-                    writer.writerows(exs_src)
-                with open('tgt.tmp', "w") as output:
-                    writer = csv.writer(output, lineterminator='\n', delimiter=" ", quotechar='|')
-                    writer.writerows(exs_tgt)
-
-            first_iter = False
             setattr(batch, 'src_lang', src_tgt[0])
             setattr(batch, 'tgt_lang', src_tgt[1])
             src = inputters.make_features(batch, 'src', self.data_type)
@@ -333,7 +319,7 @@ class Trainer(object):
             tgt = inputters.make_features(batch, 'tgt')
 
             # F-prop through the model.
-            outputs, attns, _ = self.model(src, tgt,
+            outputs, attns, _, alphasZ = self.model(src, tgt,
                             batch.src_lang,
                             batch.tgt_lang,
                             src_lengths)
@@ -383,7 +369,7 @@ class Trainer(object):
                 if self.grad_accum_count == 1:
                     self.model.zero_grad()
 
-                outputs, attns, dec_state = \
+                outputs, attns, dec_state, alphasZ = \
                     self.model(src, tgt,
                                batch.src_lang,
                                batch.tgt_lang,
@@ -395,7 +381,7 @@ class Trainer(object):
                 batch_stats = \
                     self.train_losses[batch.tgt_lang].sharded_compute_loss(
                         batch, outputs, attns, j,
-                        trunc_size, self.shard_size, normalization)
+                        trunc_size, self.shard_size, normalization, alphasZ, self.attention_heads, self.n_gpu)
 
                 total_stats.update(batch_stats)
                 report_stats.update(batch_stats)
@@ -479,4 +465,4 @@ class Trainer(object):
         """
         if self.model_saver is not None:
             self.model_saver.maybe_save(step)
-            self.last_model = self.model_saver.base_path + '_step_' + str(step) +'.pt'
+            self.last_model = self.model_saver.base_path + '_step_' + str(step) + '.pt'

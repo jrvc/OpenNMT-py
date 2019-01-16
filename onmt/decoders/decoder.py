@@ -6,7 +6,7 @@ import torch.nn as nn
 
 import onmt.models.stacked_rnn
 from onmt.utils.misc import aeq
-from onmt.utils.rnn_factory import *
+from onmt.utils.rnn_factory import rnn_factory
 
 
 class RNNDecoderBase(nn.Module):
@@ -70,6 +70,9 @@ class RNNDecoderBase(nn.Module):
         self.hidden_size = hidden_size
         self.embeddings = embeddings
         self.dropout = nn.Dropout(dropout)
+        
+        #self.ws1 = nn.Linear(hidden_size, hidden_size, bias=True)
+        #self.tanh = nn.Tanh()
 
         # Build the RNN.
         self.rnn = self._build_rnn(rnn_type,
@@ -159,6 +162,7 @@ class RNNDecoderBase(nn.Module):
     def init_decoder_state(self, src, memory_bank, encoder_final,
                            with_cache=False):
         """ Init decoder state with last state of the encoder """
+
         def _fix_enc_hidden(hidden):
             # The encoder hidden is  (layers*directions) x batch x dim.
             # We need to convert it to layers x batch x (directions*dim).
@@ -166,6 +170,29 @@ class RNNDecoderBase(nn.Module):
                 hidden = torch.cat([hidden[0:hidden.size(0):2],
                                     hidden[1:hidden.size(0):2]], 2)
             return hidden
+        
+        #memory bank: [r,bsz,nhid]
+        #emb = self.embeddings(src)
+        #print(emb.size())
+        #len x batch x embedding_dim
+        output = memory_bank.transpose(0, 1).contiguous()
+        output = torch.mean(output, 1)
+        #print(output.size())
+        x2 = output.unsqueeze(0)
+        #x3 = self.tanh(self.ws1(x2))
+        concat = torch.cat((x2, x2))
+        #print(concat.size())
+        tupl = tuple((concat,concat))
+        #print("done")
+        #check = tuple([_fix_enc_hidden(enc_hid)
+        #       for enc_hid in encoder_final])
+        #print(check[0].size())
+        #print(check[1].size())
+        #print("as")
+        return RNNDecoderState(self.hidden_size, tupl)
+
+        """
+        
 
         if isinstance(encoder_final, tuple):  # LSTM
             return RNNDecoderState(self.hidden_size,
@@ -174,7 +201,7 @@ class RNNDecoderBase(nn.Module):
         else:  # GRU
             return RNNDecoderState(self.hidden_size,
                                    _fix_enc_hidden(encoder_final))
-
+        """
 
 class StdRNNDecoder(RNNDecoderBase):
     """

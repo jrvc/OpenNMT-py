@@ -40,6 +40,7 @@ def build_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
         embedding_dim = opt.tgt_word_vec_size
 
     word_padding_idx = word_dict.stoi[inputters.PAD_WORD]
+    #print("PADDING:"+str(word_padding_idx))
     num_word_embeddings = len(word_dict)
 
     feats_padding_idx = [feat_dict.stoi[inputters.PAD_WORD]
@@ -134,6 +135,7 @@ def load_test_multitask_model(opt, model_path=None):
     model = checkpoint['whole_model']
     device = torch.device("cuda" if use_gpu(opt) else "cpu")
     model.to(device)
+
     model.eval()
     return model
 
@@ -175,7 +177,7 @@ def build_embeddings_then_encoder(model_opt, fields):
                                model_opt.sample_rate,
                                model_opt.window_size)
 
-    return encoder
+    return encoder, src_embeddings
 
 
 def build_decoder_and_generator(model_opt, fields):
@@ -203,7 +205,7 @@ def build_decoder_and_generator(model_opt, fields):
         generator = CopyGenerator(model_opt.rnn_size,
                                   fields["tgt"].vocab)
 
-    return decoder, generator
+    return decoder, generator, tgt_embeddings
 
 
 def build_base_model(model_opt, fields, gpu, checkpoint=None):
@@ -240,7 +242,8 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
                                model_opt.dropout,
                                model_opt.sample_rate,
                                model_opt.window_size)
-
+    
+    #import ipdb; ipdb.set_trace(context=2)
     # Build decoder.
     tgt_dict = fields["tgt"].vocab
     feature_dicts = inputters.collect_feature_vocabs(fields, 'tgt')

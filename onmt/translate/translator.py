@@ -343,6 +343,7 @@ class Translator(object):
                               return_attention=False):
         # TODO: faster code path for beam_size == 1.
 
+        #print("FAST TRSANALTION")
         # TODO: support these blacklisted features.
         assert data.data_type == 'text'
         assert not self.copy_attn
@@ -360,9 +361,21 @@ class Translator(object):
         # Encoder forward.
         src = inputters.make_features(batch, 'src', data.data_type)
         _, src_lengths = batch.src
-        enc_states, memory_bank = self.model.encoder(src, src_lengths)
-        dec_states = self.model.decoder.init_decoder_state(
+
+
+        enc_states, memory_bank = self.model.encoders[self.model.encoder_ids[self.src_lang]](src, src_lengths)
+
+        # Implement attention bridge/compound attention
+        if self.use_attention_bridge:
+            alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
+
+        dec_states = self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_decoder_state(
             src, memory_bank, enc_states, with_cache=True)
+
+
+#        enc_states, memory_bank = self.model.encoder(src, src_lengths)
+#        dec_states = self.model.decoder.init_decoder_state(
+#            src, memory_bank, enc_states, with_cache=True)
 
         # Tile states and memory beam_size times.
         dec_states.map_batch_fn(
@@ -403,16 +416,25 @@ class Translator(object):
         for step in range(max_length):
             decoder_input = alive_seq[:, -1].view(1, -1, 1)
 
-            # Decoder forward.
-            dec_out, dec_states, attn = self.model.decoder(
-                decoder_input,
-                memory_bank,
-                dec_states,
+
+            dec_out, dec_states, attn = self.model.decoders[self.model.decoder_ids[self.tgt_lang]](
+                decoder_input, memory_bank, dec_states,
                 memory_lengths=memory_lengths,
                 step=step)
 
+            log_probs = self.model.generators[self.model.decoder_ids[self.tgt_lang]].forward(dec_out.squeeze(0))
+
+
+            # Decoder forward.
+#            dec_out, dec_states, attn = self.model.decoder(
+#                decoder_input,
+#                memory_bank,
+#                dec_states,
+#                memory_lengths=memory_lengths,
+#                step=step)
+
             # Generator forward.
-            log_probs = self.model.generator.forward(dec_out.squeeze(0))
+#            log_probs = self.model.generator.forward(dec_out.squeeze(0))
             vocab_size = log_probs.size(-1)
 
             if step < min_length:
@@ -555,19 +577,21 @@ class Translator(object):
         src_lengths = None
         if data_type == 'text':
             _, src_lengths = batch.src
-
+        
+        #print("QUIIIII")
+        #print(self.src_lang)
+        #print(src)
+        #print(src_lengths)
+        #print("QUOOOO")
         # enc_states, memory_bank = self.model.encoder(src, src_lengths)
         enc_states, memory_bank = self.model.encoders[self.model.encoder_ids[self.src_lang]](src, src_lengths)
-        
-        # run through attention bridge/compound attention
+
+        # Implement attention bridge/compound attention
         if self.use_attention_bridge:
-            enc_states, memory_bank = self.model.attention_bridge(memory_bank)
-        
-        # Raul: implement init_decoder_states for when -init_decoder flag is 'attention_matrix' while training
+            alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
+
         dec_states = self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_decoder_state(
             src, memory_bank, enc_states)
-        #dec_states = self.model.attention_bridge.init_decoder_state(src, memory_bank, enc_states)
-
 
 
         if src_lengths is None:
@@ -682,6 +706,13 @@ class Translator(object):
         # Raul: make it compatible with neural_interlingua
         #enc_states, memory_bank = self.model.encoder(src, src_lengths)
         enc_states, memory_bank = self.model.encoders[self.model.encoder_ids[self.src_lang]](src, src_lengths)
+
+
+
+        # Implement attention bridge/compound attention
+        if self.use_attention_bridge:
+            alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
+
         #dec_states = \
         #    self.model.decoder.init_decoder_state(src, memory_bank, enc_states)
         dec_states = self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_decoder_state(
@@ -699,7 +730,8 @@ class Translator(object):
         tgt_pad = self.fields["tgt"].vocab.stoi[inputters.PAD_WORD]
         for dec, tgt in zip(dec_out, batch.tgt[1:].data):
             # Log prob of each word.
-            out = self.model.generator.forward(dec)
+            #out = self.model.generator.forward(dec)
+            out = self.model.generators[self.model.decoder_ids[self.tgt_lang]].forward(dec)#(dec_out.squeeze(0))
             tgt = tgt.unsqueeze(1)
             scores = out.data.gather(1, tgt)
             scores.masked_fill_(tgt.eq(tgt_pad), 0)

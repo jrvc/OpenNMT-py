@@ -14,6 +14,25 @@ import onmt.inputters as inputters
 from onmt.modules.sparse_losses import SparsemaxLoss
 
 
+import argparse
+import onmt.opts as opts
+from torch.autograd import Variable
+
+
+"""
+parser = argparse.ArgumentParser(description='train.py',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+opts.add_md_help_argument(parser)
+opts.model_opts(parser)
+opts.train_opts(parser)
+opt = parser.parse_args()
+#print("LOSS")
+#print(opt.attention_heads)
+"""
+
+
+
+
+
 def build_loss_compute(model, tgt_vocab, opt, train=True):
     """
     This returns user-defined LossCompute object, which is used to
@@ -58,6 +77,25 @@ def build_loss_from_generator_and_vocab(generator,
 
     return compute
 
+def Frobenius(mat):
+    size = mat.size()
+    #print("QUAS")
+    #print(size)
+    if len(size) == 3:  # batched matrix
+#        return torch.sum(torch.sum(torch.sum(mat**2,1),1)**0.5)#.type(torch.DoubleTensor) #torch.cuda.FloatTensor
+
+        ret = (torch.sum(torch.sum((mat ** 2), 1), 1).squeeze() + 1e-10) ** 0.5
+        return torch.sum(ret) / size[0]
+
+#        ff = torch.sum((mat ** 2), 1)
+#        print(ff.size())
+#        ret = (torch.sum(ff, 2, keepdim=True) + 1e-10) ** 0.5
+#        return torch.sum(ret) / size[0]
+
+    else:
+        raise Exception('matrix for computing Frobenius norm should be with 3 dims')
+
+#keepdim=True
 
 class LossComputeBase(nn.Module):
     """
@@ -132,9 +170,11 @@ class LossComputeBase(nn.Module):
 
         return batch_stats
 
+
+
     def sharded_compute_loss(self, batch, output, attns,
                              cur_trunc, trunc_size, shard_size,
-                             normalization):
+                             normalization, alphasZ, attention_heads, n_gpu):
         """Compute the forward loss and backpropagate.  Computation is done
         with shards and optionally truncation for memory efficiency.
 
@@ -162,12 +202,25 @@ class LossComputeBase(nn.Module):
             :obj:`onmt.utils.Statistics`: validation loss statistics
 
         """
+        I = Variable(torch.zeros(batch.batch_size, attention_heads, attention_heads))
+        for i in range(batch.batch_size):
+            for j in range(attention_heads):
+                I.data[i][j][j] = 1
+
+        I = I.cuda() if n_gpu >= 1 else I
+
         batch_stats = onmt.utils.Statistics()
         range_ = (cur_trunc, cur_trunc + trunc_size)
         shard_state = self._make_shard_state(batch, output, range_, attns)
         for shard in shards(shard_state, shard_size):
             loss, stats = self._compute_loss(batch, **shard)
-            loss.div(float(normalization)).backward()
+            #print("DENTRO QUA DURANTE TRANSLATION?")
+            attentionT = torch.transpose(alphasZ, 1, 2).contiguous()
+            extra_loss = (Frobenius(torch.bmm(alphasZ, attentionT) - I[:alphasZ.size(0)])*1.0)
+            #loss +=  extra_loss
+            loss=torch.add(loss,extra_loss)
+            #print(loss)
+            loss.div(float(normalization)).backward(retain_graph=True)#
             batch_stats.update(stats)
 
         return batch_stats
