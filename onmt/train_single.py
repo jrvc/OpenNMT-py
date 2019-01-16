@@ -113,7 +113,9 @@ def main(opt):
     generators = OrderedDict()
     src_vocabs = OrderedDict()
     tgt_vocabs = OrderedDict()
-
+    firstTime=True
+    weightToShare=None
+    mapLang2Emb = {}
     for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
         src_lang, tgt_lang = src_tgt_lang.split('-')
         # Peek the first dataset to determine the data_type.
@@ -132,14 +134,34 @@ def main(opt):
                         % (j, len(fields[feat].vocab)))
 
         # Build model.
-        encoder = build_embeddings_then_encoder(model_opt, fields)
+        encoder, src_embeddings = build_embeddings_then_encoder(model_opt, fields)
 
         encoders[src_lang] = encoder
 
-        decoder, generator = build_decoder_and_generator(model_opt, fields)
+        decoder, generator, tgt_embeddings = build_decoder_and_generator(model_opt, fields)
 
         decoders[tgt_lang] = decoder
+	
+        # Share the embedding matrix - preprocess with share_vocab required.
+        if model_opt.share_embeddings and firstTime:
+                #print("qui")
+                tgt_embeddings.word_lut.weight = src_embeddings.word_lut.weight
+                weightToShare = src_embeddings.word_lut.weight
+        if model_opt.share_embeddings and (not firstTime):
+                tgt_embeddings.word_lut.weight = weightToShare
+                src_embeddings.word_lut.weight = weightToShare
+             
+        if src_lang in mapLang2Emb:
+                src_embeddings.word_lut.weight = mapLang2Emb.get(src_lang)
+        else:
+                mapLang2Emb[src_lang] = src_embeddings.word_lut.weight 
 
+        if tgt_lang in mapLang2Emb:
+                tgt_embeddings.word_lut.weight = mapLang2Emb.get(tgt_lang)
+        else:
+                mapLang2Emb[tgt_lang] = tgt_embeddings.word_lut.weight 
+ 
+        firstTime = False
         # TODO: fields from vocab?
         src_vocabs[src_lang] = fields['src'].vocab
         tgt_vocabs[tgt_lang] = fields['tgt'].vocab

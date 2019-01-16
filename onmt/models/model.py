@@ -25,11 +25,11 @@ class MultiTaskModel(nn.Module):
         self.encoders = None
 
         self.use_attention_bridge = model_opt.use_attention_bridge
-        self.init_decoder = model_opt.init_decoder
-        if self.use_attention_bridge:
-            self.attention_bridge = AttentionBridge(model_opt.rnn_size, 
-                                                    model_opt.attention_heads, 
-                                                    model_opt.dec_layers)#, model_opt.dropout)
+        #print("INITI")
+        #print(self.use_attention_bridge)
+        #print(model_opt.attention_heads)
+        #print(model_opt.rnn_size)
+        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads, model_opt)#, model_opt.dropout)
 
         self.decoder_ids = None
         self.decoders = None
@@ -64,34 +64,15 @@ class MultiTaskModel(nn.Module):
         decoder = self.decoders[self.decoder_ids[tgt_task]]
 
         enc_final, memory_bank = encoder(src, lengths)
-        #import ipdb; ipdb.set_trace()
+
 
         # Implement attention bridge/compound attention
-        lstm_rnn_type =  str(type(decoder.rnn)).find('LSTM') > -1
         if self.use_attention_bridge:
-            if lstm_rnn_type:
-                rnn_final, rnn_memory_bank = enc_final, memory_bank
-            enc_final, memory_bank = self.attention_bridge(memory_bank)
-        
-        
-        # initialize decoder
-        if str(type(encoder)).find('transformer.TransformerEncoder') > -1:
-            assert (self.init_decoder == "attention_matrix") , \
-               ("""Unsupported decoder initialization '%s'. Use 
-                the 'attention matrix' option for the '-init_decoder'
-                flag when using a transformer encoder""" % (self.init_decoder))
-        if lstm_rnn_type:
-            enc_state = \
-                decoder.init_decoder_state(src, rnn_memory_bank, rnn_final)
-        else:
-            if (self.init_decoder == 'attention_matrix'):
-                enc_state = \
-                    self.attention_bridge.init_decoder_state(src, memory_bank, enc_final)
-            else:
-                enc_state = \
-                    decoder.init_decoder_state(src, memory_bank, enc_final)
+            #print("DENTRO IF")
+            alphas, memory_bank = self.attention_bridge(memory_bank, src)
 
-
+        enc_state = \
+            decoder.init_decoder_state(src, memory_bank, enc_final)
 
         decoder_outputs, dec_state, attns = \
             decoder(tgt, memory_bank,
@@ -103,7 +84,7 @@ class MultiTaskModel(nn.Module):
             # Not yet supported on multi-gpu
             dec_state = None
             attns = None
-        return decoder_outputs, attns, dec_state
+        return decoder_outputs, attns, dec_state, alphas
 
 
 
@@ -123,9 +104,7 @@ class NMTModel(nn.Module):
         super(NMTModel, self).__init__()
         self.encoder = encoder
         self.use_attention_bridge = model_opt.use_attention_bridge
-        self.attention_bridge = AttentionBridge(model_opt.rnn_size, 
-                                                    model_opt.attention_heads, 
-                                                    model_opt.dec_layers) #, model_opt.dropout)
+        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads)#, model_opt.dropout)
         self.decoder = decoder
 
     def forward(self, src, tgt, lengths, dec_state=None):
@@ -154,9 +133,11 @@ class NMTModel(nn.Module):
         enc_final, memory_bank = self.encoder(src, lengths)
         enc_state = \
             self.decoder.init_decoder_state(src, memory_bank, enc_final)
+
         # Implement attention bridge/compound attention
         if self.use_attention_bridge:
             enc_final, memory_bank = self.attention_bridge(memory_bank)
+
 
         decoder_outputs, dec_state, attns = \
             self.decoder(tgt, memory_bank,
