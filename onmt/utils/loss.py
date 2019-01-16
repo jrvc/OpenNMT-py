@@ -174,7 +174,7 @@ class LossComputeBase(nn.Module):
 
     def sharded_compute_loss(self, batch, output, attns,
                              cur_trunc, trunc_size, shard_size,
-                             normalization, alphasZ, attention_heads, n_gpu):
+                             normalization, alphasZ, I):
         """Compute the forward loss and backpropagate.  Computation is done
         with shards and optionally truncation for memory efficiency.
 
@@ -202,8 +202,7 @@ class LossComputeBase(nn.Module):
             :obj:`onmt.utils.Statistics`: validation loss statistics
 
         """
-        I = Variable(torch.stack([torch.eye(attention_heads) for i in range(batch.batch_size)]))
-        I = I.cuda() if n_gpu >= 1 else I
+
 
         batch_stats = onmt.utils.Statistics()
         range_ = (cur_trunc, cur_trunc + trunc_size)

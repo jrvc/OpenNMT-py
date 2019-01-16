@@ -23,7 +23,8 @@ import sys
 from onmt.utils.loss import build_loss_from_generator_and_vocab
 
 from onmt.utils.logging import logger
-
+import torch
+from torch.autograd import Variable
 
 def build_trainer(opt, model, fields, optim, data_type,
                   generators,
@@ -341,6 +342,9 @@ class Trainer(object):
         if self.grad_accum_count > 1:
             self.model.zero_grad()
 
+        I = Variable(torch.stack([torch.eye(self.attention_heads) for i in range(len(true_batchs[0]) ) ] )) #len(true_batchs[0] = true_batchs[0].__dict__['batch_size']
+        I = I.cuda() if self.n_gpu >= 1 else I
+
         # Chris: the `batch` contains the information about what the source
         # Chris: and target languages are
         for batch in true_batchs:
@@ -381,7 +385,7 @@ class Trainer(object):
                 batch_stats = \
                     self.train_losses[batch.tgt_lang].sharded_compute_loss(
                         batch, outputs, attns, j,
-                        trunc_size, self.shard_size, normalization, alphasZ, self.attention_heads, self.n_gpu)
+                        trunc_size, self.shard_size, normalization, alphasZ, I)
 
                 total_stats.update(batch_stats)
                 report_stats.update(batch_stats)
