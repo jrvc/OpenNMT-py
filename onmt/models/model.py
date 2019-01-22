@@ -17,9 +17,8 @@ class MultiTaskModel(nn.Module):
     """
 
     def __init__(self, encoder, decoder, model_opt, multigpu=False):
-        self.multigpu = multigpu
         super(MultiTaskModel, self).__init__()
-
+        self.multigpu = multigpu
         # Chris: these fields currently get initialized externally
         self.encoder_ids = None
         self.encoders = None
