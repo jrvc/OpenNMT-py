@@ -7,18 +7,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import onmt
 
-#from torch.nn.utils.rnn import pack_padded_sequence as pack
-#from torch.nn.utils.rnn import pad_packed_sequence as unpack
-
-#from onmt.encoders.encoder import EncoderBase
-#from onmt.utils.rnn_factory import rnn_factory
-
-
 class AttentionBridge(nn.Module):
     """
     Multi-headed attention. Bridge between encoders->decoders
     """
-    def __init__(self, hidden_size, attention_heads, model_opt,dropout=0.1):
+    def __init__(self, hidden_size, attention_heads, model_opt):
         """Attention Heads Layer:"""
         super(AttentionBridge, self).__init__()
         d = hidden_size
@@ -37,10 +30,7 @@ class AttentionBridge(nn.Module):
         #take transpose to match dimensions s.t. r=new_seq_len:
         self.M = torch.transpose(output, 0, 1).contiguous() #[r,bsz,nhid]
         #h_avrg = (self.M).mean(dim=0, keepdim=True)
-        #h_sum = (self.M).sum(dim=0, keepdim=True)
-        #return h_avrg, self.M # enc_final=h_avrg memory_bank=output3
-        return alphas, self.M # enc_final=h_avrg memory_bank=output3
-
+        return alphas, self.M
 
 
     def mixAtt(self, outp, inp):

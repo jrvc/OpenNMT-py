@@ -172,23 +172,14 @@ class RNNDecoderBase(nn.Module):
             return hidden
         
         #memory bank: [r,bsz,nhid]
-        #emb = self.embeddings(src)
-        #print(emb.size())
-        #len x batch x embedding_dim
-        output = memory_bank.transpose(0, 1).contiguous()
-        output = torch.mean(output, 1)
-        #print(output.size())
-        x2 = output.unsqueeze(0)
-        #x3 = self.tanh(self.ws1(x2))
+        output = memory_bank.transpose(0, 1).contiguous() # [bsz, r, nhid]
+
+        output = torch.mean(output, 1) #[bsz, nhid]
+        x2 = output.unsqueeze(0) #[bsz*nhid]
+        #TODO: created two times beacuse we use two layers.. Change in a more general way, according to the number of decoder layers
         concat = torch.cat((x2, x2))
-        #print(concat.size())
         tupl = tuple((concat,concat))
-        #print("done")
-        #check = tuple([_fix_enc_hidden(enc_hid)
-        #       for enc_hid in encoder_final])
-        #print(check[0].size())
-        #print(check[1].size())
-        #print("as")
+
         return RNNDecoderState(self.hidden_size, tupl)
 
         """
