@@ -195,7 +195,7 @@ class Trainer(object):
             if self.n_gpu == 0 or (step % self.n_gpu == self.gpu_rank):
                 if self.gpu_verbose_level > 1:
                     logger.info("GpuRank %d: index: %d accum: %d"
-                                % (self.gpu_rank, i, accum))
+                                % (self.gpu_rank, step, accum))
 
                 true_batchs.append(batch)
 
@@ -253,14 +253,17 @@ class Trainer(object):
 
                         self._maybe_save(step)
                         """
+                        # TODO: change in a better way
+                        # method to have bleu score during validation: it translates on a file, and run a script in order to detokenize, untrucase, etc. and finally compute the bleu score 
+                        
                         from onmt.translate.translator import build_translator
                         import argparse
 
                         for lang_pair in valid_iter_fcts.items():
                             src_tgt = lang_pair[0]
                             src_langDEV, tgt_langDEV = src_tgt
-                            src_tmp = '/wrk/raganato/DONOTREMOVE/MULTI/EUROPARL/dev/test2000.tc.bpe.'+str(src_langDEV)
-                            out_tmp = '/wrk/raganato/DONOTREMOVE/MULTI/EUROPARL/model/baselineNIL/'+str(src_langDEV)+'-'+str(tgt_langDEV)+'/dev.txt'
+                            src_tmp = path/to/dev/text-file+str(src_langDEV)
+                            out_tmp = path/to/dev/temp/output/+str(src_langDEV)+'-'+str(tgt_langDEV)+'.txt'
 
                             parser = argparse.ArgumentParser(prog='translate.py',
                                                              description='train.py')
@@ -278,11 +281,11 @@ class Trainer(object):
                                                  src_dir=dummy_opt.src_dir,
                                                  batch_size=256,
                                                  attn_debug=False)
-                            original = '/wrk/raganato/DONOTREMOVE/MULTI/EUROPARL/dev/test2000.'+str(dummy_opt.tgt_lang)+'.detok'
+                            original = path/to/dev/text-file+str(src_langDEV)+str(dummy_opt.tgt_lang)+'.detok'
                             
-                            res = subprocess.check_output("bash /wrk/raganato/DONOTREMOVE/MULTI/EUROPARL/OpenNMT-py-neural-interlingua2InitAMNOTANH/models/evaluateDev.sh %s %s %s" % (dummy_opt.tgt_lang, out_tmp, original), shell=True).decode("utf-8")
+                            res = subprocess.check_output("bash path/to/evaluation_script.sh %s %s %s" % (dummy_opt.tgt_lang, out_tmp, original), shell=True).decode("utf-8")
                             msg = res.strip()
-                            print(str(step)+" "+str(src_langDEV)+'-'+str(tgt_langDEV)+' '+str(msg), file=sys.stderr)
+                            #print(str(step)+" "+str(src_langDEV)+'-'+str(tgt_langDEV)+' '+str(msg), file=sys.stderr) # print on stderr for csc
                             print(str(step)+" "+str(src_langDEV)+'-'+str(tgt_langDEV)+' '+str(msg))
                         print()
                         """

@@ -113,13 +113,19 @@ def main(opt):
     generators = OrderedDict()
     src_vocabs = OrderedDict()
     tgt_vocabs = OrderedDict()
+
+    # variables needed for sharing the same embedding matrix across encoders and decoders
     firstTime=True
     weightToShare=None
+
+    # we share the word embedding space when source lang and target lang are the same
     mapLang2Emb = {}
+
     for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
         src_lang, tgt_lang = src_tgt_lang.split('-')
         # Peek the first dataset to determine the data_type.
         # (All datasets have the same data_type).
+        # TODO: change this part to support different data type
         first_dataset = next(lazily_load_dataset("train", data_path))
         data_type = first_dataset.data_type
         fields = _load_fields(first_dataset, data_type, data_path, checkpoint)
@@ -142,32 +148,27 @@ def main(opt):
 
         decoders[tgt_lang] = decoder
 	
-        # Share the embedding matrix - preprocess with share_vocab required.
+        # Share the embedding matrix across all the encoders and decoders - preprocess with share_vocab required.
         if model_opt.share_embeddings and firstTime:
-                #print("qui")
                 tgt_embeddings.word_lut.weight = src_embeddings.word_lut.weight
                 weightToShare = src_embeddings.word_lut.weight
         if model_opt.share_embeddings and (not firstTime):
                 tgt_embeddings.word_lut.weight = weightToShare
                 src_embeddings.word_lut.weight = weightToShare
-             
-        if src_lang in mapLang2Emb:
-                src_embeddings.word_lut.weight = mapLang2Emb.get(src_lang)
-        else:
-                mapLang2Emb[src_lang] = src_embeddings.word_lut.weight 
+        firstTime = False
 
+        if src_lang in mapLang2Emb:
+                encoder.embeddings.word_lut.weight = mapLang2Emb.get(src_lang)
+        else:
+                mapLang2Emb[src_lang] = src_embeddings.word_lut.weight
         if tgt_lang in mapLang2Emb:
-                tgt_embeddings.word_lut.weight = mapLang2Emb.get(tgt_lang)
+                decoder.embeddings.word_lut.weight = mapLang2Emb.get(tgt_lang)
         else:
                 mapLang2Emb[tgt_lang] = tgt_embeddings.word_lut.weight 
- 
-        firstTime = False
+
         # TODO: fields from vocab?
         src_vocabs[src_lang] = fields['src'].vocab
         tgt_vocabs[tgt_lang] = fields['tgt'].vocab
-
-        #src_vocabs[src_lang] = fields['src']
-        #tgt_vocabs[tgt_lang] = fields['tgt']
 
         generators[tgt_lang] = generator
 

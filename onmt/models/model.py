@@ -17,19 +17,14 @@ class MultiTaskModel(nn.Module):
     """
 
     def __init__(self, encoder, decoder, model_opt, multigpu=False):
-        self.multigpu = multigpu
         super(MultiTaskModel, self).__init__()
-
+        self.multigpu = multigpu
         # Chris: these fields currently get initialized externally
         self.encoder_ids = None
         self.encoders = None
 
         self.use_attention_bridge = model_opt.use_attention_bridge
-        #print("INITI")
-        #print(self.use_attention_bridge)
-        #print(model_opt.attention_heads)
-        #print(model_opt.rnn_size)
-        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads, model_opt)#, model_opt.dropout)
+        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads, model_opt)
 
         self.decoder_ids = None
         self.decoders = None
@@ -68,7 +63,6 @@ class MultiTaskModel(nn.Module):
 
         # Implement attention bridge/compound attention
         if self.use_attention_bridge:
-            #print("DENTRO IF")
             alphas, memory_bank = self.attention_bridge(memory_bank, src)
 
         enc_state = \

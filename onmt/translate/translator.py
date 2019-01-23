@@ -343,7 +343,6 @@ class Translator(object):
                               return_attention=False):
         # TODO: faster code path for beam_size == 1.
 
-        #print("FAST TRSANALTION")
         # TODO: support these blacklisted features.
         assert data.data_type == 'text'
         assert not self.copy_attn
@@ -578,11 +577,6 @@ class Translator(object):
         if data_type == 'text':
             _, src_lengths = batch.src
         
-        #print("QUIIIII")
-        #print(self.src_lang)
-        #print(src)
-        #print(src_lengths)
-        #print("QUOOOO")
         # enc_states, memory_bank = self.model.encoder(src, src_lengths)
         enc_states, memory_bank = self.model.encoders[self.model.encoder_ids[self.src_lang]](src, src_lengths)
 
@@ -703,10 +697,8 @@ class Translator(object):
         tgt_in = inputters.make_features(batch, 'tgt')[:-1]
 
         #  (1) run the encoder on the src
-        # Raul: make it compatible with neural_interlingua
         #enc_states, memory_bank = self.model.encoder(src, src_lengths)
         enc_states, memory_bank = self.model.encoders[self.model.encoder_ids[self.src_lang]](src, src_lengths)
-
 
 
         # Implement attention bridge/compound attention

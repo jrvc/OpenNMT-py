@@ -40,7 +40,7 @@ def build_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
         embedding_dim = opt.tgt_word_vec_size
 
     word_padding_idx = word_dict.stoi[inputters.PAD_WORD]
-    #print("PADDING:"+str(word_padding_idx))
+
     num_word_embeddings = len(word_dict)
 
     feats_padding_idx = [feat_dict.stoi[inputters.PAD_WORD]
@@ -242,8 +242,7 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
                                model_opt.dropout,
                                model_opt.sample_rate,
                                model_opt.window_size)
-    
-    #import ipdb; ipdb.set_trace(context=2)
+
     # Build decoder.
     tgt_dict = fields["tgt"].vocab
     feature_dicts = inputters.collect_feature_vocabs(fields, 'tgt')
@@ -265,8 +264,10 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
     device = torch.device("cuda" if gpu else "cpu")
 
     # Chris: a different model type for multi-task models
-    model = onmt.models.MultiTaskModel(encoder, decoder, model_opt)
+    # encoder and decoder set to None bacause they are initialized externally
+    model = onmt.models.MultiTaskModel(None, None, model_opt)
     model.model_type = model_opt.model_type
+
 
     # Build Generator.
     if not model_opt.copy_attn:
@@ -282,6 +283,7 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
     else:
         generator = CopyGenerator(model_opt.rnn_size,
                                   fields["tgt"].vocab)
+
 
     # Load the model states from checkpoint or initialize them.
     #if checkpoint is not None:
@@ -319,11 +321,35 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None):
 def build_multitask_model():
     pass
 
+def build_base_multitask_model(model_opt, fields, gpu, checkpoint=None):
+    """
+    Args:
+        model_opt: the option loaded from checkpoint.
+        fields: `Field` objects for the model.
+        gpu(bool): whether to use gpu.
+        checkpoint: the model gnerated by train phase, or a resumed snapshot
+                    model from a stopped training.
+    Returns:
+        the NMTModel.
+    """
+    assert model_opt.model_type in ["text", "img", "audio"], \
+        ("Unsupported model type %s" % (model_opt.model_type))
+    # Build NMTModel(= encoder + decoder).
+    device = torch.device("cuda" if gpu else "cpu")
+
+    # Chris: a different model type for multi-task models
+    # encoder and decoder set to None bacause they are initialized externally
+    model = onmt.models.MultiTaskModel(None, None, model_opt)
+    model.model_type = model_opt.model_type
+
+    model.to(device)
+
+    return model
 
 def build_model(model_opt, opt, fields, checkpoint):
     """ Build the Model """
     logger.info('Building model...')
-    model = build_base_model(model_opt, fields,
+    model = build_base_multitask_model(model_opt, fields,
                              use_gpu(opt), checkpoint)
     logger.info(model)
     return model
