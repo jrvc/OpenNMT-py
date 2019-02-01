@@ -1,13 +1,20 @@
 
 from preprocess import build_save_vocab
 from onmt.utils.logging import init_logger, logger
+from collections import Counter
 import onmt.inputters as inputters
 import argparse
 import onmt.opts as opts
 
 import torch
+import torchtext
 import os
 
+PAD_WORD = '<blank>'
+UNK_WORD = '<unk>'
+UNK = 0
+BOS_WORD = '<s>'
+EOS_WORD = '</s>'
 
 def preprocess_opts(parser):
     """ Pre-procesing options """
@@ -99,16 +106,30 @@ def parse_args():
    # check_existing_pt_files(opt)
 
     return opt
+    
+def save_fields_to_vocab(fields):
+    """
+    Save Vocab objects in Field objects to `vocab.pt` file.
+    """
+    vocab = []
+    for k, f in fields.items():
+        if f is not None and 'vocab' in f.__dict__:
+            f.vocab.stoi = f.vocab.stoi
+            vocab.append((k, f.vocab))
+    return vocab
 
-
-# Note: This code will be good enough for shared vocabulary for all decoders and encoders.
+def AddCounter(lang_tuple, lang, dictLangFreqs):
+    Vocab = lang_tuple[1]
+    freqs = Vocab.freqs
+    c = dictLangFreqs[lang]
+    c += freqs
+    dictLangFreqs[lang] = c
 
 def main():
+    import ipdb; ipdb.set_trace(context=5)
     opt = parse_args()
     init_logger(opt.log_file)
-
     logger.info("Building & saving vocabulary...")
-
     logger.info("Extracting features...")
 
     src_nfeats = opt.num_src_features
@@ -119,10 +140,11 @@ def main():
     logger.info("Building `Fields` object...")
     fields = inputters.get_fields(opt.data_type, src_nfeats, tgt_nfeats)
 
-    train_dataset_pref = opt.train_dataset_prefixes
+    train_dataset_pref = opt.train_dataset_prefixes[0]
 
     train_dataset_files = []
     vocab_files = []
+    """
     for pref in train_dataset_pref:
         basedir = os.path.dirname(pref)
         pref_basename = os.path.basename(pref)+".train."
@@ -131,30 +153,50 @@ def main():
             if fn.startswith(pref_basename):
                 ptfile = os.path.join(basedir, fn)
                 train_dataset_files.append(ptfile)
+    """
+    vocabfiles = [f for f in os.listdir(train_dataset_pref) if f.find('vocab.pt')>-1]
+    langpairs = [vf[vf.find('.')+1:vf.find('.vocab')] for vf in vocabfiles]
+    langs = set([langpair.split('-')[1] for langpair in langpairs])
+    dictLangFreqs = {}
+    for lang in langs:
+        dictLangFreqs[lang] = Counter()
+    
+    # update frequencies to take into account all the files
+    for i in range(len(langpairs)):
+          vocab_object = torch.load(train_dataset_pref+'/'+vocabfiles[i])
+          src_lang, tgt_lang = langpairs[i].split('-')
+          AddCounter(vocab_object[0], src_lang, dictLangFreqs)
+          AddCounter(vocab_object[1], tgt_lang, dictLangFreqs)
 
-   # train_dataset_files =
-   # print(train_dataset_files)
-    #build_save_vocab(train_dataset_files, fields, opt)
-    """ Building and saving the vocab """
-    fields = inputters.build_vocab(train_dataset_files, fields, opt.data_type,
-                                   opt.share_vocab,
-                                   opt.src_vocab,
-                                   opt.src_vocab_size,
-                                   opt.src_words_min_frequency,
-                                   opt.tgt_vocab,
-                                   opt.tgt_vocab_size,
-                                   opt.tgt_words_min_frequency)
+    ipdb.set_trace()
+    """ saving the new vocab """
+    for i in range(len(langpairs)):
+        langSRC, langTGT = langpairs[i].split('-')
+        #fields = {}
 
-    # Can't save fields, so remove/reconstruct at training time.
-    for vocab_file in vocab_files:
-        #vocab_file = opt.save_data + '.vocab.pt'
-        logger.info("saving vocab to %s" % vocab_file)
-        torch.save(inputters.save_fields_to_vocab(fields), vocab_file)
+        #fields["src"] = torchtext.data.Field(
+        #        include_lengths=True)
+        #fields["tgt"] = torchtext.data.Field(
+        #        pad_token=PAD_WORD)
 
+        c_tgt = dictLangFreqs[langTGT]
+        vocab_tgt = torchtext.vocab.Vocab(c_tgt,
+                                  specials=[UNK_WORD, PAD_WORD,
+                                            BOS_WORD, EOS_WORD],
+                                  max_size=50000)
+        fields["tgt"].vocab = vocab_tgt
 
+        c_src = dictLangFreqs[langSRC]
+        vocab_src = torchtext.vocab.Vocab(c_src,
+                                  specials=[UNK_WORD, PAD_WORD,
+                                            BOS_WORD, EOS_WORD],
+                                  max_size=50000)
+        fields["src"].vocab = vocab_src
 
+        vocab_file = train_dataset_pref+'/'+vocabfiles[i]
+        torch.save(save_fields_to_vocab(fields), vocab_file)
 
-
+        
 
 if __name__ == "__main__":
     main()
