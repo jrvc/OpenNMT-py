@@ -92,7 +92,7 @@ To translate using a multilingual model use `translate_multimodel.py` instead of
    ```
    for src in de en; do
      for tgt in fr cs; do
-       python translate_multimodel.py -model ${SAVE_PATH}/MULTILINGUAL_step_1000.pt \
+       python translate_multimodel.py -model ${SAVE_PATH}/MULTILINGUAL_step_10000.pt \
             -src_lang ${src} \
             -src data/multi30k/dataset/data/task1/tok/test_2016_flickr.lc.norm.tok.${src} \
             -tgt_lang ${tgt} \
