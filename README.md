@@ -57,16 +57,16 @@ To translate using a multilingual model use `translate_multimodel.py` instead of
    ```
    SAVE_PATH=$ONMT/models/demo
    mkdir -p $SAVE_PATH
-   python train.py -data data/sample_data/de-cs/data \
-                      data/sample_data/fr-cs/data \
-                      data/sample_data/de-en/data \
-                      data/sample_data/fr-en/data \
-                      data/sample_data/cs-de/data \
-                      data/sample_data/en-de/data \
-                      data/sample_data/fr-de/data \
-                      data/sample_data/cs-fr/data \
-                      data/sample_data/de-fr/data \
-                      data/sample_data/en-fr/data \
+   python train.py -data data/sample_data/m30k.de-cs \
+                      data/sample_data/m30k.fr-cs \
+                      data/sample_data/m30k.de-en \
+                      data/sample_data/m30k.fr-en \
+                      data/sample_data/m30k.cs-de \
+                      data/sample_data/m30k.en-de \
+                      data/sample_data/m30k.fr-de \
+                      data/sample_data/m30k.cs-fr \
+                      data/sample_data/m30k.de-fr \
+                      data/sample_data/m30k.en-fr \
                 -src_tgt de-cs fr-cs de-en fr-en cs-de en-de fr-de cs-fr de-fr en-fr \
                 -save_model ${SAVE_PATH}/MULTILINGUAL          \
                 -use_attention_bridge \
@@ -92,7 +92,7 @@ To translate using a multilingual model use `translate_multimodel.py` instead of
    ```
    for src in de en; do
      for tgt in fr cs; do
-       python translate_multimodel.py -model ${SAVE_PATH}/MULTILINGUAL_step_10000.pt \
+       python translate_multimodel.py -model ${SAVE_PATH}/MULTILINGUAL_step_100000.pt \
             -src_lang ${src} \
             -src data/multi30k/dataset/data/task1/tok/test_2016_flickr.lc.norm.tok.${src} \
             -tgt_lang ${tgt} \
