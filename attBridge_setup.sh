@@ -15,7 +15,7 @@
 # run commands
 module purge
 # you will need to load these modules every time you use the neural-intelingua branch 
-module load python-env/intelpython3.6-2018.3 gcc/5.4.0 cuda/9.0 cudnn/7.1-cuda9
+module load python-env/3.6.3-ml gcc/5.4.0 cuda/9.0 cudnn/7.1-cuda9
 module list 
 
 
