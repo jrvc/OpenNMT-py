@@ -1,7 +1,16 @@
-# OpenNMT-py: neural-interlingua branch 
+# OpenNMT-py: flexi-bridge branch 
 [![Build Status](https://travis-ci.org/OpenNMT/OpenNMT-py.svg?branch=master)](https://travis-ci.org/OpenNMT/OpenNMT-py)  
 
 ## About this branch
+`flexi-bridge` is intended as a development sub-branch of `neural-interlingua`, with the aim of adding more flexibility to specifying an Attention Bridge model, using different types oftext encoders for different source languages as well as other types of encoders for multimodal input.
+
+The immediate goals are:
+- switching to configuration files as a more customizable (but not convoluted) framework for specifying options
+- adding support for individually assigning different types of encoders to different source languages
+- defining and documenting input formats and preprocessing routines for audio input
+- integrating a state-of-the-art audio encoder to OpenNMT-py suitable for speech translation
+
+## About `neural-interlingua`
 `neural-interlingua` is an implementation of an Attention Bridge architecture to obtain the language independent sentence representation. The proposed architecture is a multilingual implementation of the conjugate attention encoder-decoder NMT ([Cífka and Bojar, 2018](https://arxiv.org/pdf/1805.06536.pdf)), trainable with a language rotating schedule. In other words, we propose to simultaneously use the following two 
 
 [fig1]: https://github.com/Helsinki-NLP/OpenNMT-py/blob/ATT-ATT/att-att.png "compound attention Figure 1"
