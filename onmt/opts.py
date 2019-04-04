@@ -248,12 +248,12 @@ def preprocess_opts(parser):
 
     # Truncation options, for text corpus
     group = parser.add_argument_group('Pruning')
-    group.add('--src_seq_length', '-src_seq_length', type=int, default=50,
+    group.add('--src_seq_length', '-src_seq_length', type=int, default=500,
               help="Maximum source sequence length")
     group.add('--src_seq_length_trunc', '-src_seq_length_trunc',
               type=int, default=None,
               help="Truncate source sequence length.")
-    group.add('--tgt_seq_length', '-tgt_seq_length', type=int, default=50,
+    group.add('--tgt_seq_length', '-tgt_seq_length', type=int, default=500,
               help="Maximum target sequence length to keep.")
     group.add('--tgt_seq_length_trunc', '-tgt_seq_length_trunc',
               type=int, default=None,
