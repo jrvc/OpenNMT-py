@@ -307,6 +307,9 @@ def train_opts(parser):
     group.add('--data', '-data', required=True,
               help='Path prefix to the ".train.pt" and '
                    '".valid.pt" file path from preprocess.py')
+    group.add('--src_tgt', '-src_tgt', required=True, nargs='+',
+            type=str, help="""src and tgt language codes in the form
+            <src>-<tgt>""")
 
     group.add('--save_model', '-save_model', default='model',
               help="Model filename (the model will be saved as "
@@ -687,7 +690,6 @@ def translate_opts(parser):
 # Copyright 2016 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 
 class StoreLoggingLevelAction(configargparse.Action):
     """ Convert string to logging level """
