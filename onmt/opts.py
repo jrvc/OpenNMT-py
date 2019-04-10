@@ -304,7 +304,7 @@ def train_opts(parser):
     """ Training and saving options """
 
     group = parser.add_argument_group('General')
-    group.add('--data', '-data', required=True,
+    group.add('--data', '-data', required=True, nargs='+', type=str,
               help='Path prefix to the ".train.pt" and '
                    '".valid.pt" file path from preprocess.py')
     group.add('--src_tgt', '-src_tgt', required=True, nargs='+',
@@ -525,6 +525,20 @@ def train_opts(parser):
               help="Using grayscale image can training "
                    "model faster and smaller")
 
+    # att_brg options
+    group = parser.add_argument_group('Attention_bridge')
+    group.add('--use_attention_bridge', '-use_attention_bridge',
+            action='store_true', help="""Use self-attention layer between
+            enc and dec""")
+    group.add('--attention_heads', '-attention_heads', type=int, default=4,
+            help="""Number of attention heads in attention bridge""")
+    group.add('--init_decoder', '-init_decoder', type=str, default="rnn_final_state",
+            choices=['rnn_final_state', 'attention_matrix'],
+            help="""Method to initialize decoder. With the final state
+            of the decoder or with the avrg of the attention bridge.
+            IMPORTANT:
+            Must choose attention_matrix if -encoder_type transformer
+            Must chose rnn_final state if -use_attention_bridge is NOT activated """)
 
 def translate_opts(parser):
     """ Translation / inference options """
