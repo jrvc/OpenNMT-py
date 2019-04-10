@@ -103,6 +103,49 @@ def load_test_model(opt, model_path=None):
     model.generator.eval()
     return fields, model, model_opt
 
+def build_embeddings_then_encoder(model_opt, fields):
+
+    # Build embeddings.
+    if model_opt.model_type == "text":
+        src_field = fields["src"]
+        src_emb = build_embeddings(model_opt, src_field)
+    else:
+        src_emb = None
+
+    # Build encoder.
+    encoder = build_encoder(model_opt, src_emb)
+
+    return encoder, src_emb
+
+def build_decoder_and_generator(model_opt, fields):
+
+    # Build decoder.
+    tgt_field = fields["tgt"]
+    tgt_emb = build_embeddings(model_opt, tgt_field, for_encoder=False)
+
+    decoder = build_decoder(model_opt, tgt_emb)
+
+    # Build Generator.
+    if not model_opt.copy_attn:
+        if model_opt.generator_function == "sparsemax":
+            gen_func = onmt.modules.sparse_activations.LogSparsemax(dim=-1)
+        else:
+            gen_func = nn.LogSoftmax(dim=-1)
+        generator = nn.Sequential(
+            nn.Linear(model_opt.dec_rnn_size,
+                      len(fields["tgt"].base_field.vocab)),
+            Cast(torch.float32),
+            gen_func
+        )
+        if model_opt.share_decoder_embeddings:
+            generator[0].weight = decoder.embeddings.word_lut.weight
+    else:
+        tgt_base_field = fields["tgt"].base_field
+        vocab_size = len(tgt_base_field.vocab)
+        pad_idx = tgt_base_field.vocab.stoi[tgt_base_field.pad_token]
+        generator = CopyGenerator(model_opt.dec_rnn_size, vocab_size, pad_idx)
+
+    return decoder, generator, tgt_emb
 
 def build_base_model(model_opt, fields, gpu, checkpoint=None, gpu_id=None):
     """Build a model from opts.
