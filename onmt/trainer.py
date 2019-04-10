@@ -12,6 +12,7 @@
 from copy import deepcopy
 import itertools
 import torch
+import traceback
 
 import onmt.utils
 from onmt.utils.logging import logger
@@ -52,6 +53,10 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
         n_gpu = 0
     gpu_verbose_level = opt.gpu_verbose_level
 
+    earlystopper = onmt.utils.EarlyStopping(
+        opt.early_stopping, scorers=onmt.utils.scorers_from_opts(opt)) \
+        if opt.early_stopping > 0 else None
+
     report_manager = onmt.utils.build_report_manager(opt)
     trainer = onmt.Trainer(model, train_loss, valid_loss, optim, trunc_size,
                            shard_size, norm_method,
@@ -61,7 +66,8 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
                            model_saver=model_saver if gpu_rank == 0 else None,
                            average_decay=average_decay,
                            average_every=average_every,
-                           model_dtype=opt.model_dtype)
+                           model_dtype=opt.model_dtype,
+                           earlystopper=earlystopper)
     return trainer
 
 
@@ -97,7 +103,8 @@ class Trainer(object):
                  accum_steps=[0],
                  n_gpu=1, gpu_rank=1,
                  gpu_verbose_level=0, report_manager=None, model_saver=None,
-                 average_decay=0, average_every=1, model_dtype='fp32'):
+                 average_decay=0, average_every=1, model_dtype='fp32',
+                 earlystopper=None):
         # Basic attributes.
         self.model = model
         self.train_loss = train_loss
@@ -118,6 +125,7 @@ class Trainer(object):
         self.moving_average = None
         self.average_every = average_every
         self.model_dtype = model_dtype
+        self.earlystopper = earlystopper
 
         for i in range(len(self.accum_count_l)):
             assert self.accum_count_l[i] > 0
@@ -247,6 +255,12 @@ class Trainer(object):
                                 % (self.gpu_rank, step))
                 self._report_step(self.optim.learning_rate(),
                                   step, valid_stats=valid_stats)
+                # Run patience mechanism
+                if self.earlystopper is not None:
+                    self.earlystopper(valid_stats, step)
+                    # If the patience has reached the limit, stop training
+                    if self.earlystopper.has_stopped():
+                        break
 
             if (self.model_saver is not None
                 and (save_checkpoint_steps != 0
@@ -308,7 +322,7 @@ class Trainer(object):
         if self.accum_count > 1:
             self.optim.zero_grad()
 
-        for batch in true_batches:
+        for k, batch in enumerate(true_batches):
             target_size = batch.tgt.size(0)
             # Truncated BPTT: reminder not compatible with accum > 1
             if self.trunc_size:
@@ -335,20 +349,26 @@ class Trainer(object):
                 bptt = True
 
                 # 3. Compute loss.
-                loss, batch_stats = self.train_loss(
-                    batch,
-                    outputs,
-                    attns,
-                    normalization=normalization,
-                    shard_size=self.shard_size,
-                    trunc_start=j,
-                    trunc_size=trunc_size)
+                try:
+                    loss, batch_stats = self.train_loss(
+                        batch,
+                        outputs,
+                        attns,
+                        normalization=normalization,
+                        shard_size=self.shard_size,
+                        trunc_start=j,
+                        trunc_size=trunc_size)
 
-                if loss is not None:
-                    self.optim.backward(loss)
+                    if loss is not None:
+                        self.optim.backward(loss)
 
-                total_stats.update(batch_stats)
-                report_stats.update(batch_stats)
+                    total_stats.update(batch_stats)
+                    report_stats.update(batch_stats)
+
+                except Exception:
+                    traceback.print_exc()
+                    logger.info("At step %d, we removed a batch - accum %d",
+                                self.optim.training_step, k)
 
                 # 4. Update the parameters and statistics.
                 if self.accum_count == 1:
