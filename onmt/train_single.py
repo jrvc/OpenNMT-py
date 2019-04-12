@@ -157,8 +157,11 @@ def main(opt, device_id):
                                                                     data_path,
                                                                     fields,
                                                                     opt)
+
     # Build model.
-    model = build_model(model_opt, opt, fields, checkpoint)
+    model = build_model(model_opt, opt, fields, encoders, decoders,
+            generators, src_vocabs, tgt_vocabs, checkpoint)
+
     n_params, enc, dec = _tally_parameters(model)
     logger.info('encoder: %d' % enc)
     logger.info('decoder: %d' % dec)
@@ -172,7 +175,8 @@ def main(opt, device_id):
     model_saver = build_model_saver(model_opt, opt, model, fields, optim)
 
     trainer = build_trainer(
-        opt, device_id, model, fields, optim, model_saver=model_saver)
+        opt, device_id, model, fields, optim, generators, tgt_vocabs,
+        model_saver=model_saver)
 
     train_iter = build_dataset_iter("train", fields, opt)
     valid_iter = build_dataset_iter(

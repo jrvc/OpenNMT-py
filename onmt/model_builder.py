@@ -262,9 +262,57 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None, gpu_id=None):
 
     return model
 
+def build_base_multitask_model(model_opt, fields, gpu, encoders, decoders, generators, src_vocabs, tgt_vocabs, checkpoint=None):
+    """
+    Args:
+        model_opt: the option loaded from checkpoint.
+        fields: `Field` objects for the model.
+        gpu(bool): whether to use gpu.
+        checkpoint: the model gnerated by train phase, or a resumed snapshot
+                    model from a stopped training.
+    Returns:
+        the NMTModel.
+    """
+    assert model_opt.model_type in ["text", "img", "audio"], \
+            ("Unsupported model type %s" % (model_opt.model_type))
 
-def build_model(model_opt, opt, fields, checkpoint):
+    device = torch.device("cuda" if gpu else "cpu")
+
+    model = onmt.models.model.MultiTaskModel(encoders, decoders, model_opt)
+    model.model_type = model_opt.model_type
+
+    model.src_vocabs = src_vocabs
+    model.tgt_vocabs = tgt_vocabs
+
+    # Load the model states from checkpoint or initialize them.
+    if checkpoint is not None:
+        model.load_state_dict(checkpoint['model'])
+        #generator.load_state_dict(checkpoint['generator'])
+    else:
+        logger.info("Initializing model parameters")
+        if model_opt.param_init != 0.0:
+            for p in model.parameters():
+                p.data.uniform_(-model_opt.param_init, model_opt.param_init)
+            for generator in generators.values():
+                for p in generator.parameters():
+                    p.data.uniform_(-model_opt.param_init, model_opt.param_init)
+        if model_opt.param_init_glorot:
+            for p in model.parameters():
+                if p.dim() > 1:
+                    xavier_uniform_(p)
+            for generator in generators.values():
+                for p in generator.parameters():
+                    if p.dim() > 1:
+                        xavier_uniform_(p)
+
+    model.generators = nn.ModuleList(generators.values())
+
+    model.to(device)
+
+    return model
+
+def build_model(model_opt, opt, fields, encoders, decoders, generators, src_vocabs, tgt_vocabs, checkpoint):
     logger.info('Building model...')
-    model = build_base_model(model_opt, fields, use_gpu(opt), checkpoint)
+    model = build_base_multitask_model(model_opt, fields, use_gpu(opt), encoders, decoders, generators, src_vocabs, tgt_vocabs, checkpoint)
     logger.info(model)
     return model

@@ -14,11 +14,16 @@ import itertools
 import torch
 import traceback
 
+from collections import OrderedDict
+
 import onmt.utils
 from onmt.utils.logging import logger
 
+from onmt.utils.loss import build_loss_from_generator_and_vocab
 
-def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
+
+def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs,
+        model_saver=None):
     """
     Simplify `Trainer` creation based on user `opt`s*
 
@@ -33,10 +38,29 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
             used to save the model
     """
 
-    tgt_field = dict(fields)["tgt"].base_field
-    train_loss = onmt.utils.loss.build_loss_compute(model, tgt_field, opt)
-    valid_loss = onmt.utils.loss.build_loss_compute(
-        model, tgt_field, opt, train=False)
+    # Chris: one loss for every decoder
+    train_losses = OrderedDict()
+    valid_losses = OrderedDict()
+    for tgt_lang, gen in generators.items():
+        train_losses[tgt_lang] = \
+            build_loss_from_generator_and_vocab(
+                gen,
+                tgt_vocabs[tgt_lang],
+                opt,
+                train=True
+        )
+        valid_losses[tgt_lang] = \
+            build_loss_from_generator_and_vocab(
+                gen,
+                tgt_vocabs[tgt_lang],
+                opt,
+                train=False
+            )
+
+    #tgt_field = dict(fields)["tgt"].base_field
+    #train_loss = onmt.utils.loss.build_loss_compute(model, tgt_field, opt)
+    #valid_loss = onmt.utils.loss.build_loss_compute(
+    #    model, tgt_field, opt, train=False)
 
     trunc_size = opt.truncated_decoder  # Badly named...
     shard_size = opt.max_generator_batches if opt.model_dtype == 'fp32' else 0

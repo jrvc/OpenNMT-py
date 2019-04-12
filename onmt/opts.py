@@ -106,6 +106,9 @@ def model_opts(parser):
               help="Size of windows in the cnn, the kernel_size is "
                    "(cnn_kernel_width, 1) in conv layer")
 
+    group.add('--hidden_ab_size', '-hidden_ab_size', type=int, default=2048,
+            help="""Size of attention bridge hidden states""")
+
     group.add('--input_feed', '-input_feed', type=int, default=1,
               help="Feed the context vector at each time step as "
                    "additional input (via concatenation with the word "

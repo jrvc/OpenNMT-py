@@ -56,6 +56,30 @@ def build_loss_compute(model, tgt_field, opt, train=True):
     return compute
 
 
+def build_loss_from_generator_and_vocab(generator,
+                                        tgt_vocab,
+                                        opt,
+                                        train=True):
+    """
+    This returns user-defined LossCompute object, which is used to
+    compute loss in train/validate process. You can implement your
+    own *LossCompute class, by subclassing LossComputeBase.
+    """
+    device = torch.device("cuda" if onmt.utils.misc.use_gpu(opt) else "cpu")
+
+    if opt.copy_attn:
+        compute = onmt.modules.CopyGeneratorLossCompute(
+            generator, tgt_vocab, opt.copy_attn_force,
+            opt.copy_loss_by_seqlength)
+    else:
+        compute = NMTLossCompute(
+            generator, tgt_vocab,
+            label_smoothing=opt.label_smoothing if train else 0.0)
+    compute.to(device)
+
+    return compute
+
+
 class LossComputeBase(nn.Module):
     """
     Class for managing efficient loss computation. Handles
