@@ -56,7 +56,7 @@ def build_loss_compute(model, tgt_field, opt, train=True):
     return compute
 
 
-def build_loss_from_generator_and_vocab(generator,
+def build_loss_from_generator_and_vocab(tgt_field, generator,
                                         tgt_vocab,
                                         opt,
                                         train=True):
@@ -67,14 +67,28 @@ def build_loss_from_generator_and_vocab(generator,
     """
     device = torch.device("cuda" if onmt.utils.misc.use_gpu(opt) else "cpu")
 
+    padding_idx = tgt_field.vocab.stoi[tgt_field.pad_token]
+    unk_idx = tgt_field.vocab.stoi[tgt_field.unk_token]
+    if opt.copy_attn:
+        criterion = onmt.modules.CopyGeneratorLoss(
+            len(tgt_field.vocab), opt.copy_attn_force,
+            unk_index=unk_idx, ignore_index=padding_idx
+        )
+    elif opt.label_smoothing > 0 and train:
+        criterion = LabelSmoothingLoss(
+            opt.label_smoothing, len(tgt_field.vocab), ignore_index=padding_idx
+        )
+    elif isinstance(generator[-1], LogSparsemax):
+        criterion = SparsemaxLoss(ignore_index=padding_idx, reduction='sum')
+    else:
+        criterion = nn.NLLLoss(ignore_index=padding_idx, reduction='sum')
+
     if opt.copy_attn:
         compute = onmt.modules.CopyGeneratorLossCompute(
-            generator, tgt_vocab, opt.copy_attn_force,
+            criterion, generator, tgt_vocab,
             opt.copy_loss_by_seqlength)
     else:
-        compute = NMTLossCompute(
-            generator, tgt_vocab,
-            label_smoothing=opt.label_smoothing if train else 0.0)
+        compute = NMTLossCompute(criterion, generator)
     compute.to(device)
 
     return compute

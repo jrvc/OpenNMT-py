@@ -38,12 +38,15 @@ def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs,
             used to save the model
     """
 
+    tgt_field = dict(fields)["tgt"].base_field
+
     # Chris: one loss for every decoder
     train_losses = OrderedDict()
     valid_losses = OrderedDict()
     for tgt_lang, gen in generators.items():
         train_losses[tgt_lang] = \
             build_loss_from_generator_and_vocab(
+                tgt_field,
                 gen,
                 tgt_vocabs[tgt_lang],
                 opt,
@@ -51,6 +54,7 @@ def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs,
         )
         valid_losses[tgt_lang] = \
             build_loss_from_generator_and_vocab(
+                tgt_field,
                 gen,
                 tgt_vocabs[tgt_lang],
                 opt,
@@ -82,7 +86,8 @@ def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs,
         if opt.early_stopping > 0 else None
 
     report_manager = onmt.utils.build_report_manager(opt)
-    trainer = onmt.Trainer(model, train_loss, valid_loss, optim, trunc_size,
+    trainer = onmt.Trainer(model, train_losses, valid_losses, optim, trunc_size,
+                           opt.use_attention_bridge, opt.attention_heads,
                            shard_size, norm_method,
                            accum_count, accum_steps,
                            n_gpu, gpu_rank,
@@ -122,6 +127,7 @@ class Trainer(object):
     """
 
     def __init__(self, model, train_loss, valid_loss, optim,
+                 use_attention_bridge, attention_heads,
                  trunc_size=0, shard_size=32,
                  norm_method="sents", accum_count=[1],
                  accum_steps=[0],
@@ -150,6 +156,8 @@ class Trainer(object):
         self.average_every = average_every
         self.model_dtype = model_dtype
         self.earlystopper = earlystopper
+        self.use_attention_bridge = use_attention_bridge
+        self.attention_heads = attention_heads
 
         for i in range(len(self.accum_count_l)):
             assert self.accum_count_l[i] > 0
@@ -202,11 +210,11 @@ class Trainer(object):
                     cpt.detach().float() * average_decay
 
     def train(self,
-              train_iter,
+              train_iter_fcts,
               train_steps,
-              save_checkpoint_steps=5000,
-              valid_iter=None,
-              valid_steps=10000):
+              save_checkpoint_steps,
+              valid_iter_fcts,
+              valid_steps):
         """
         The main training loop by iterating over `train_iter` and possibly
         running validation on `valid_iter`.
@@ -222,7 +230,7 @@ class Trainer(object):
         Returns:
             The gathered statistics.
         """
-        if valid_iter is None:
+        if valid_iter_fcts is None:
             logger.info('Start training loop without validation...')
         else:
             logger.info('Start training loop and validate every %d steps...',
@@ -231,6 +239,10 @@ class Trainer(object):
         total_stats = onmt.utils.Statistics()
         report_stats = onmt.utils.Statistics()
         self._start_report_manager(start_time=total_stats.start_time)
+
+        # init every train iter
+        train_iters = {k: (b for b in f())
+                        for k, f in train_iter_fcts.items()}
 
         if self.n_gpu > 1:
             train_iter = itertools.islice(

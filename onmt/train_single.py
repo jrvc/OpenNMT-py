@@ -178,9 +178,9 @@ def main(opt, device_id):
         opt, device_id, model, fields, optim, generators, tgt_vocabs,
         model_saver=model_saver)
 
-    train_iter = build_dataset_iter("train", fields, opt)
-    valid_iter = build_dataset_iter(
-        "valid", fields, opt, is_train=False)
+    #train_iter = build_dataset_iter("train", fields, opt)
+    #valid_iter = build_dataset_iter(
+    #    "valid", fields, opt, is_train=False)
 
     if len(opt.gpu_ranks):
         logger.info('Starting training on GPU: %s' % opt.gpu_ranks)
@@ -191,11 +191,11 @@ def main(opt, device_id):
         logger.warning("Option single_pass is enabled, ignoring train_steps.")
         train_steps = 0
     trainer.train(
-        train_iter,
+        train_iter_fcts,
         train_steps,
-        save_checkpoint_steps=opt.save_checkpoint_steps,
-        valid_iter=valid_iter,
-        valid_steps=opt.valid_steps)
+        opt.save_checkpoint_steps,
+        valid_iter_fcts,
+        opt.valid_steps)
 
     if opt.tensorboard:
         trainer.report_manager.tensorboard_writer.close()
