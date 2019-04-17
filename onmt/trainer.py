@@ -13,6 +13,7 @@ from copy import deepcopy
 import itertools
 import torch
 import traceback
+import random
 
 from collections import OrderedDict
 
@@ -240,69 +241,73 @@ class Trainer(object):
         report_stats = onmt.utils.Statistics()
         self._start_report_manager(start_time=total_stats.start_time)
 
-        if self.n_gpu > 1:
-            train_iter = itertools.islice(
-                train_iter, self.gpu_rank, None, self.n_gpu)
+        step = self.optim.training_step
+        print(train_iters)
 
-        for direction, train_iter in train_iters.items():
-            print(train_iter)
-            for i, (batches, normalization) in enumerate(
-                    self._accum_batches(train_iter)):
-                step = self.optim.training_step
+        while step <= train_steps:
 
-                if self.gpu_verbose_level > 1:
-                    logger.info("GpuRank %d: index: %d", self.gpu_rank, i)
+            src_lang, tgt_lang = random.choice(list(train_iters.keys()))
+
+            step = self.optim.training_step
+
+            if self.n_gpu > 1:
+                train_iter = itertools.islice(
+                    train_iter, self.gpu_rank, None, self.n_gpu)
+
+            if self.gpu_verbose_level > 1:
+                logger.info("GpuRank %d: index: %d", self.gpu_rank, i)
+            if self.gpu_verbose_level > 0:
+                logger.info("GpuRank %d: reduce_counter: %d \
+                            n_minibatch %d"
+                            % (self.gpu_rank, i + 1, len(batches)))
+
+            if self.n_gpu > 1:
+                normalization = sum(onmt.utils.distributed
+                                    .all_gather_list
+                                    (normalization))
+
+            self._gradient_accumulation(
+                batches, normalization, total_stats,
+                report_stats)
+
+            if self.average_decay > 0 and i % self.average_every == 0:
+                self._update_average(step)
+
+            report_stats = self._maybe_report_training(
+                step, train_steps,
+                self.optim.learning_rate(),
+                report_stats)
+
+            if valid_iter is not None and step % valid_steps == 0:
                 if self.gpu_verbose_level > 0:
-                    logger.info("GpuRank %d: reduce_counter: %d \
-                                n_minibatch %d"
-                                % (self.gpu_rank, i + 1, len(batches)))
+                    logger.info('GpuRank %d: validate step %d'
+                                % (self.gpu_rank, step))
+                valid_stats = self.validate(
+                    valid_iter, moving_average=self.moving_average)
+                if self.gpu_verbose_level > 0:
+                    logger.info('GpuRank %d: gather valid stat \
+                                step %d' % (self.gpu_rank, step))
+                valid_stats = self._maybe_gather_stats(valid_stats)
+                if self.gpu_verbose_level > 0:
+                    logger.info('GpuRank %d: report stat step %d'
+                                % (self.gpu_rank, step))
+                self._report_step(self.optim.learning_rate(),
+                                  step, valid_stats=valid_stats)
+                # Run patience mechanism
+                # TODO: not implemented yet in this branch
+                #if self.earlystopper is not None:
+                #    self.earlystopper(valid_stats, step)
+                #    # If the patience has reached the limit, stop training
+                #    if self.earlystopper.has_stopped():
+                #        break
 
-                if self.n_gpu > 1:
-                    normalization = sum(onmt.utils.distributed
-                                        .all_gather_list
-                                        (normalization))
+            if (self.model_saver is not None
+                and (save_checkpoint_steps != 0
+                     and step % save_checkpoint_steps == 0)):
+                self.model_saver.save(step, moving_average=self.moving_average)
 
-                self._gradient_accumulation(
-                    batches, normalization, total_stats,
-                    report_stats)
-
-                if self.average_decay > 0 and i % self.average_every == 0:
-                    self._update_average(step)
-
-                report_stats = self._maybe_report_training(
-                    step, train_steps,
-                    self.optim.learning_rate(),
-                    report_stats)
-
-                if valid_iter is not None and step % valid_steps == 0:
-                    if self.gpu_verbose_level > 0:
-                        logger.info('GpuRank %d: validate step %d'
-                                    % (self.gpu_rank, step))
-                    valid_stats = self.validate(
-                        valid_iter, moving_average=self.moving_average)
-                    if self.gpu_verbose_level > 0:
-                        logger.info('GpuRank %d: gather valid stat \
-                                    step %d' % (self.gpu_rank, step))
-                    valid_stats = self._maybe_gather_stats(valid_stats)
-                    if self.gpu_verbose_level > 0:
-                        logger.info('GpuRank %d: report stat step %d'
-                                    % (self.gpu_rank, step))
-                    self._report_step(self.optim.learning_rate(),
-                                      step, valid_stats=valid_stats)
-                    # Run patience mechanism
-                    if self.earlystopper is not None:
-                        self.earlystopper(valid_stats, step)
-                        # If the patience has reached the limit, stop training
-                        if self.earlystopper.has_stopped():
-                            break
-
-                if (self.model_saver is not None
-                    and (save_checkpoint_steps != 0
-                         and step % save_checkpoint_steps == 0)):
-                    self.model_saver.save(step, moving_average=self.moving_average)
-
-                if train_steps > 0 and step >= train_steps:
-                    break
+            if train_steps > 0:
+                break
 
         if self.model_saver is not None:
             self.model_saver.save(step, moving_average=self.moving_average)
