@@ -41,16 +41,6 @@ def configure_process(opt, device_id):
     set_random_seed(opt.seed, device_id >= 0)
 
 
-def build_data_iter_fct(dataset_name, path_, fields_, opt_):
-
-    def train_iter_wrapper():
-        return build_dataset_iter(torch.load(dataset_name, path_),
-                fields_,
-                opt_)
-
-    return train_iter_wrapper
-
-
 def main(opt, device_id):
     # NOTE: It's important that ``opt`` has been validated and updated
     # at this point.
@@ -74,8 +64,8 @@ def main(opt, device_id):
         model_opt = opt
         #vocab = torch.load(opt.data + '.vocab.pt')
 
-    train_iter_fcts = OrderedDict()
-    valid_iter_fcts = OrderedDict()
+    train_iters = OrderedDict()
+    valid_iters = OrderedDict()
 
     encoders = OrderedDict()
     decoders = OrderedDict()
@@ -147,16 +137,18 @@ def main(opt, device_id):
 
         generators[tgt_lang] = generator
 
+        test = build_dataset_iter('train', fields, data_path, opt)
         # add this dataset iterator to the training iterators
-        train_iter_fcts[(src_lang, tgt_lang)] = build_data_iter_fct('train',
-                                                                    data_path,
-                                                                    fields,
-                                                                    opt)
+        train_iters[(src_lang, tgt_lang)] = build_dataset_iter('train',
+                                                                fields,
+                                                                data_path,
+                                                                opt)
         # add this dataset iterator to the validation iterators
-        valid_iter_fcts[(src_lang, tgt_lang)] = build_data_iter_fct('valid',
-                                                                    data_path,
-                                                                    fields,
-                                                                    opt)
+        valid_iters[(src_lang, tgt_lang)] = build_dataset_iter('valid',
+                                                                fields,
+                                                                data_path,
+                                                                opt,
+                                                                is_train=False)
 
     # Build model.
     model = build_model(model_opt, opt, fields, encoders, decoders,
@@ -191,10 +183,10 @@ def main(opt, device_id):
         logger.warning("Option single_pass is enabled, ignoring train_steps.")
         train_steps = 0
     trainer.train(
-        train_iter_fcts,
+        train_iters,
         train_steps,
         opt.save_checkpoint_steps,
-        valid_iter_fcts,
+        valid_iters,
         opt.valid_steps)
 
     if opt.tensorboard:

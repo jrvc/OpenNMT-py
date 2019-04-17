@@ -623,14 +623,14 @@ def max_tok_len(new, count, sofar):
     return max(src_elements, tgt_elements)
 
 
-def build_dataset_iter(corpus_type, fields, opt, is_train=True):
+def build_dataset_iter(corpus_type, fields, data_path, opt, is_train=True):
     """
     This returns user-defined train/validate data iterator for the trainer
     to iterate over. We implement simple ordered iterator strategy here,
     but more sophisticated strategy like curriculum learning is ok too.
     """
     dataset_paths = list(sorted(
-        glob.glob(opt.data + '.' + corpus_type + '*.pt')))
+        glob.glob(data_path + '.' + corpus_type + '*.pt')))
     if not dataset_paths:
         return None
     batch_size = opt.batch_size if is_train else opt.valid_batch_size
