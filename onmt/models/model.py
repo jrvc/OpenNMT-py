@@ -16,7 +16,7 @@ class MultiTaskModel(nn.Module):
     def __init__(self, encoders, decoders, model_opt, multigpu=False):
         super(MultiTaskModel, self).__init__()
         self.multigpu = multigpu
-        # Chris: these fields currently get initialized externally
+
         encoder_ids = {lang_code: idx
                    for lang_code, idx
                    in zip(encoders.keys(), range(len(list(encoders.keys()))))}
@@ -37,7 +37,7 @@ class MultiTaskModel(nn.Module):
         # generator ids is linked with decoder_ids
         # self.generators = None
 
-    def forward(self, src, tgt, src_task, tgt_task, lengths, dec_state=None):
+    def forward(self, src, tgt, src_task, tgt_task, lengths, dec_state=None, bptt=False):
         """Forward propagate a `src` and `tgt` pair for training.
         Possible initialized with a beginning decoder state.
         Args:
@@ -61,7 +61,8 @@ class MultiTaskModel(nn.Module):
         encoder = self.encoders[self.encoder_ids[src_task]]
         decoder = self.decoders[self.decoder_ids[tgt_task]]
 
-        enc_final, memory_bank = encoder(src, lengths)
+        #TODO: resolve dummy
+        enc_final, memory_bank, dummy = encoder(src, lengths)
 
 
         # Implement attention bridge/compound attention
@@ -69,19 +70,22 @@ class MultiTaskModel(nn.Module):
             alphas, memory_bank = self.attention_bridge(memory_bank, src)
 
         enc_state = \
-            decoder.init_decoder_state(src, memory_bank, enc_final)
+            decoder.init_state(src, memory_bank, enc_final)
 
-        decoder_outputs, dec_state, attns = \
-            decoder(tgt, memory_bank,
-                    enc_state if dec_state is None
-                    else dec_state,
-                    memory_lengths=lengths)
+        decoder_outputs, attns = \
+            decoder(tgt, memory_bank, memory_lengths=lengths)
+
+        #decoder_outputs, dec_state, attns = \
+        #    decoder(tgt, memory_bank,
+        #            enc_state if dec_state is None
+        #            else dec_state,
+        #            memory_lengths=lengths)
 
         if self.multigpu:
             # Not yet supported on multi-gpu
             dec_state = None
             attns = None
-        return decoder_outputs, attns, dec_state, alphas
+        return decoder_outputs, attns, alphas
 
 
 class NMTModel(nn.Module):

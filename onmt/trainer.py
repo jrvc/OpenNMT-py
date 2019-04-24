@@ -241,14 +241,22 @@ class Trainer(object):
         report_stats = onmt.utils.Statistics()
         self._start_report_manager(start_time=total_stats.start_time)
 
+        true_batches = []
+
         step = self.optim.training_step
-        print(train_iters)
 
         while step <= train_steps:
 
             src_lang, tgt_lang = random.choice(list(train_iters.keys()))
 
-            step = self.optim.training_step
+            train_iter = iter(train_iters[(src_lang, tgt_lang)])
+
+            batch = next(train_iter)
+
+            setattr(batch, 'src_lang', src_lang)
+            setattr(batch, 'tgt_lang', tgt_lang)
+
+            true_batches.append(batch)
 
             if self.n_gpu > 1:
                 train_iter = itertools.islice(
@@ -266,8 +274,11 @@ class Trainer(object):
                                     .all_gather_list
                                     (normalization))
 
+            #TODO: fix hardcoded normalization
+            normalization = 64
+
             self._gradient_accumulation(
-                batches, normalization, total_stats,
+                true_batches, normalization, total_stats,
                 report_stats)
 
             if self.average_decay > 0 and i % self.average_every == 0:
@@ -278,33 +289,36 @@ class Trainer(object):
                 self.optim.learning_rate(),
                 report_stats)
 
-            if valid_iter is not None and step % valid_steps == 0:
-                if self.gpu_verbose_level > 0:
-                    logger.info('GpuRank %d: validate step %d'
-                                % (self.gpu_rank, step))
-                valid_stats = self.validate(
-                    valid_iter, moving_average=self.moving_average)
-                if self.gpu_verbose_level > 0:
-                    logger.info('GpuRank %d: gather valid stat \
-                                step %d' % (self.gpu_rank, step))
-                valid_stats = self._maybe_gather_stats(valid_stats)
-                if self.gpu_verbose_level > 0:
-                    logger.info('GpuRank %d: report stat step %d'
-                                % (self.gpu_rank, step))
-                self._report_step(self.optim.learning_rate(),
-                                  step, valid_stats=valid_stats)
-                # Run patience mechanism
-                # TODO: not implemented yet in this branch
-                #if self.earlystopper is not None:
-                #    self.earlystopper(valid_stats, step)
-                #    # If the patience has reached the limit, stop training
-                #    if self.earlystopper.has_stopped():
-                #        break
+            for valid_iter in valid_iters:
+                if valid_iter is not None and step % valid_steps == 0:
+                    if self.gpu_verbose_level > 0:
+                        logger.info('GpuRank %d: validate step %d'
+                                    % (self.gpu_rank, step))
+                    valid_stats = self.validate(
+                        valid_iter, moving_average=self.moving_average)
+                    if self.gpu_verbose_level > 0:
+                        logger.info('GpuRank %d: gather valid stat \
+                                    step %d' % (self.gpu_rank, step))
+                    valid_stats = self._maybe_gather_stats(valid_stats)
+                    if self.gpu_verbose_level > 0:
+                        logger.info('GpuRank %d: report stat step %d'
+                                    % (self.gpu_rank, step))
+                    self._report_step(self.optim.learning_rate(),
+                                      step, valid_stats=valid_stats)
+                    # Run patience mechanism
+                    # TODO: not implemented yet in this branch
+                    #if self.earlystopper is not None:
+                    #    self.earlystopper(valid_stats, step)
+                    #    # If the patience has reached the limit, stop training
+                    #    if self.earlystopper.has_stopped():
+                    #        break
 
             if (self.model_saver is not None
                 and (save_checkpoint_steps != 0
                      and step % save_checkpoint_steps == 0)):
                 self.model_saver.save(step, moving_average=self.moving_average)
+
+            step = self.optim.training_step
 
             if train_steps > 0:
                 break
@@ -384,12 +398,14 @@ class Trainer(object):
                 # 2. F-prop all but generator.
                 if self.accum_count == 1:
                     self.optim.zero_grad()
-                outputs, attns = self.model(src, tgt, src_lengths, bptt=bptt)
+
+                outputs, attns, alphas = self.model(src, tgt, batch.src_lang, \
+                        batch.tgt_lang, src_lengths, bptt=bptt)
                 bptt = True
 
                 # 3. Compute loss.
                 try:
-                    loss, batch_stats = self.train_loss(
+                    loss, batch_stats = self.train_loss[batch.tgt_lang](
                         batch,
                         outputs,
                         attns,
@@ -424,8 +440,9 @@ class Trainer(object):
                 # TO CHECK
                 # if dec_state is not None:
                 #    dec_state.detach()
-                if self.model.decoder.state is not None:
-                    self.model.decoder.detach_state()
+                decoder_id = self.model.decoder_ids[batch.tgt_lang]
+                if self.model.decoders[decoder_id].state is not None:
+                    self.model.decoders[decoder_id].detach_state()
 
         # in case of multi step gradient accumulation,
         # update only after accum batches

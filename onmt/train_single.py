@@ -150,6 +150,7 @@ def main(opt, device_id):
                                                                 opt,
                                                                 is_train=False)
 
+
     # Build model.
     model = build_model(model_opt, opt, fields, encoders, decoders,
             generators, src_vocabs, tgt_vocabs, checkpoint)
