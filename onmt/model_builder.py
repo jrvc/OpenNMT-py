@@ -77,6 +77,17 @@ def build_decoder(opt, embeddings):
                else opt.decoder_type
     return str2dec[dec_type].from_opt(opt, embeddings)
 
+def load_test_multitask_model(opt, model_path=None):
+    if model_path is None:
+        model_path = opt.models[0]
+    checkpoint = torch.load(model_path,
+                            map_location=lambda storage, loc: storage)
+    model = checkpoint['whole_model']
+    device = torch.device("cuda" if use_gpu(opt) else "cpu")
+    model.to(device)
+
+    model.eval()
+    return model
 
 def load_test_model(opt, model_path=None):
     if model_path is None:

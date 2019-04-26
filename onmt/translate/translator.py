@@ -27,6 +27,9 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
         if len(opt.models) > 1 else onmt.model_builder.load_test_model
     fields, model, model_opt = load_test_model(opt)
 
+    # overwrite model
+    model = onmt.model_builder.load_test_multitask_model(opt)
+
     scorer = onmt.translate.GNMTGlobalScorer.from_opt(opt)
 
     translator = Translator.from_opt(
@@ -86,6 +89,8 @@ class Translator(object):
     def __init__(
             self,
             model,
+            src_lang,
+            tgt_lang,
             fields,
             src_reader,
             tgt_reader,
@@ -115,6 +120,8 @@ class Translator(object):
             logger=None,
             seed=-1):
         self.model = model
+        self.src_lang = src_lang
+        self.tgt_lang = tgt_lang
         self.fields = fields
         tgt_field = dict(self.fields)["tgt"].base_field
         self._tgt_vocab = tgt_field.vocab
@@ -193,7 +200,8 @@ class Translator(object):
             global_scorer=None,
             out_file=None,
             report_score=True,
-            logger=None):
+            logger=None,
+            use_attention_bridge=False):
         """Alternate constructor.
 
         Args:
@@ -215,6 +223,8 @@ class Translator(object):
         tgt_reader = inputters.str2reader["text"].from_opt(opt)
         return cls(
             model,
+            opt.src_lang,
+            opt.tgt_lang,
             fields,
             src_reader,
             tgt_reader,
@@ -526,8 +536,13 @@ class Translator(object):
         src, src_lengths = batch.src if isinstance(batch.src, tuple) \
                            else (batch.src, None)
 
-        enc_states, memory_bank, src_lengths = self.model.encoder(
-            src, src_lengths)
+        #enc_states, memory_bank, src_lengths = self.model.encoder(
+        #    src, src_lengths)
+        print(src.shape)
+        print(self.model.encoders[self.model.encoder_ids[self.src_lang]])
+
+        enc_states, memory_bank, src_lengths = self.model.encoders[
+                self.model.encoder_ids[self.src_lang]](src, src_lengths)
         if src_lengths is None:
             assert not isinstance(memory_bank, tuple), \
                 'Ensemble decoding only supported for text data'
