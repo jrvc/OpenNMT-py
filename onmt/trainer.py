@@ -127,7 +127,7 @@ class Trainer(object):
                 Thus nothing will be saved if this parameter is None
     """
 
-    def __init__(self, model, train_loss, valid_loss, optim,
+    def __init__(self, model, train_losses, valid_losses, optim,
                  use_attention_bridge, attention_heads,
                  trunc_size=0, shard_size=32,
                  norm_method="sents", accum_count=[1],
@@ -138,8 +138,8 @@ class Trainer(object):
                  earlystopper=None):
         # Basic attributes.
         self.model = model
-        self.train_loss = train_loss
-        self.valid_loss = valid_loss
+        self.train_losses = train_losses
+        self.valid_losses = valid_losses
         self.optim = optim
         self.trunc_size = trunc_size
         self.shard_size = shard_size
@@ -214,7 +214,7 @@ class Trainer(object):
               train_iter_fcts,
               train_steps,
               save_checkpoint_steps,
-              valid_iters,
+              valid_iter_fcts,
               valid_steps):
         """
         The main training loop by iterating over `train_iter` and possibly
@@ -231,7 +231,7 @@ class Trainer(object):
         Returns:
             The gathered statistics.
         """
-        if valid_iters is None:
+        if valid_iter_fcts is None:
             logger.info('Start training loop without validation...')
         else:
             logger.info('Start training loop and validate every %d steps...',
@@ -251,7 +251,6 @@ class Trainer(object):
         i = -1
 
         while step <= train_steps:
-            print("STEP:", step)
             #step = self.optim.training_step
             step += 1
 
@@ -297,13 +296,16 @@ class Trainer(object):
                 self.optim.learning_rate(),
                 report_stats)
 
-            for valid_iter in valid_iters:
-                if valid_iter is not None and step % valid_steps == 0:
+            for lang_pair in valid_iter_fcts.items():
+                if lang_pair is not None and step % valid_steps == 0:
+                    valid_iter = lang_pair[1]
+                    src_tgt = lang_pair[0]
+                    logger.info('Current language pair: {}'.format(src_tgt))
                     if self.gpu_verbose_level > 0:
                         logger.info('GpuRank %d: validate step %d'
                                     % (self.gpu_rank, step))
                     valid_stats = self.validate(
-                        valid_iter, moving_average=self.moving_average)
+                        valid_iter, src_tgt, moving_average=self.moving_average)
                     if self.gpu_verbose_level > 0:
                         logger.info('GpuRank %d: gather valid stat \
                                     step %d' % (self.gpu_rank, step))
@@ -333,7 +335,7 @@ class Trainer(object):
             self.model_saver.save(step, moving_average=self.moving_average)
         return total_stats
 
-    def validate(self, valid_iter, moving_average=None):
+    def validate(self, valid_iter, src_tgt, moving_average=None):
         """ Validate model.
             valid_iter: validate data iterator
         Returns:
@@ -355,15 +357,20 @@ class Trainer(object):
             stats = onmt.utils.Statistics()
 
             for batch in valid_iter:
+                setattr(batch, 'src_lang', src_tgt[0])
+                setattr(batch, 'tgt_lang', src_tgt[1])
                 src, src_lengths = batch.src if isinstance(batch.src, tuple) \
                                    else (batch.src, None)
                 tgt = batch.tgt
 
                 # F-prop through the model.
-                outputs, attns = valid_model(src, tgt, src_lengths)
+                outputs, attns, alphas = valid_model(src, tgt,
+                                            batch.src_lang,
+                                            batch.tgt_lang,
+                                            src_lengths)
 
                 # Compute loss.
-                _, batch_stats = self.valid_loss(batch, outputs, attns)
+                _, batch_stats = self.valid_losses[batch.tgt_lang](batch, outputs, attns)
 
                 # Update statistics.
                 stats.update(batch_stats)
@@ -411,7 +418,7 @@ class Trainer(object):
 
                 # 3. Compute loss.
                 try:
-                    loss, batch_stats = self.train_loss[batch.tgt_lang](
+                    loss, batch_stats = self.train_losses[batch.tgt_lang](
                         batch,
                         outputs,
                         attns,
