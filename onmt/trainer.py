@@ -211,7 +211,7 @@ class Trainer(object):
                     cpt.detach().float() * average_decay
 
     def train(self,
-              train_iters,
+              train_iter_fcts,
               train_steps,
               save_checkpoint_steps,
               valid_iters,
@@ -243,15 +243,26 @@ class Trainer(object):
 
         true_batches = []
 
+        # init every train iter
+        train_iters = {k: self._accum_batches(f)
+                for k, f in train_iter_fcts.items()}
+
         step = self.optim.training_step
+        i = -1
 
         while step <= train_steps:
+            print("STEP:", step)
+            #step = self.optim.training_step
+            step += 1
+
+            i += 1
 
             src_lang, tgt_lang = random.choice(list(train_iters.keys()))
 
-            train_iter = iter(train_iters[(src_lang, tgt_lang)])
+            train_iter = train_iters[(src_lang, tgt_lang)]
 
-            batch = next(train_iter)
+            batch, normalization = next(train_iter)
+            batch = batch[0]
 
             setattr(batch, 'src_lang', src_lang)
             setattr(batch, 'tgt_lang', tgt_lang)
@@ -273,9 +284,6 @@ class Trainer(object):
                 normalization = sum(onmt.utils.distributed
                                     .all_gather_list
                                     (normalization))
-
-            #TODO: fix hardcoded normalization
-            normalization = 64
 
             self._gradient_accumulation(
                 true_batches, normalization, total_stats,
@@ -318,10 +326,8 @@ class Trainer(object):
                      and step % save_checkpoint_steps == 0)):
                 self.model_saver.save(step, moving_average=self.moving_average)
 
-            step = self.optim.training_step
-
-            if train_steps > 0:
-                break
+            #if train_steps > 0 and step >= train_steps:
+            #    break
 
         if self.model_saver is not None:
             self.model_saver.save(step, moving_average=self.moving_average)
