@@ -248,11 +248,11 @@ class Trainer(object):
                 for k, f in train_iter_fcts.items()}
 
         step = self.optim.training_step
+
         i = -1
 
         while step <= train_steps:
             #step = self.optim.training_step
-            step += 1
 
             i += 1
 
@@ -260,7 +260,16 @@ class Trainer(object):
 
             train_iter = train_iters[(src_lang, tgt_lang)]
 
-            batch, normalization = next(train_iter)
+            try:
+                batch, normalization = next(train_iter)
+            except:
+                # re-init the iterator
+                logger.info('recreating {}-{} dataset'.format(src_lang,
+                                                            tgt_lang))
+                train_iters[(src_lang, tgt_lang)] = \
+                   (self._accum_batches(train_iter_fcts[(src_lang, tgt_lang)]))
+                batch, normalization = next(train_iters[(src_lang, tgt_lang)])
+
             batch = batch[0]
 
             setattr(batch, 'src_lang', src_lang)
@@ -330,6 +339,9 @@ class Trainer(object):
 
             #if train_steps > 0 and step >= train_steps:
             #    break
+            step += 1
+
+        step -= 1
 
         if self.model_saver is not None:
             self.model_saver.save(step, moving_average=self.moving_average)

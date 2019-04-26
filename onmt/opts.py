@@ -708,6 +708,20 @@ def translate_opts(parser):
               help="Using grayscale image can training "
                    "model faster and smaller")
 
+    # att-brg options
+    group = parser.add_argument_group('Attention_bridge')
+    group.add('--use_attention_bridge', '-use_attention_bridge',
+            action='store_true', help="""Use self-attention layer
+            between enc and dec""")
+
+def translate_multimodel(parser):
+    # src and tgt langs for multi-encoder and multi-decoder models
+    group = parser.add_argument_group('Source and Target Languages')
+    group.add('--src_lang', '-src_lang', required=True,
+            help="The 2-character source language code")
+    group.add('--tgt_lang', '-tgt_lang', required=True,
+            help="The 2-character source language code")
+
 
 # Copyright 2016 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -735,7 +749,6 @@ class StoreLoggingLevelAction(configargparse.Action):
         # Get the key 'value' in the dict, or just use 'value'
         level = StoreLoggingLevelAction.LEVELS.get(value, value)
         setattr(namespace, self.dest, level)
-
 
 class DeprecateAction(configargparse.Action):
     """ Deprecate action """
