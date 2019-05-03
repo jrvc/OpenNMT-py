@@ -539,9 +539,6 @@ class Translator(object):
 
         #enc_states, memory_bank, src_lengths = self.model.encoder(
         #    src, src_lengths)
-        print(src.shape)
-        print(src_lengths)
-        print(self.model.encoders[self.model.encoder_ids[self.src_lang]])
 
         enc_states, memory_bank, src_lengths = self.model.encoders[
                 self.model.encoder_ids[self.src_lang]](src, src_lengths)
@@ -574,7 +571,8 @@ class Translator(object):
         # and [src_len, batch, hidden] as memory_bank
         # in case of inference tgt_len = 1, batch = beam times batch_size
         # in case of Gold Scoring tgt_len = actual length, batch = 1 batch
-        dec_out, dec_attn = self.model.decoders[self.model.decoder_ids[self.tgt_lang]](
+        decoder = self.model.decoders[self.model.decoder_ids[self.tgt_lang]]
+        dec_out, dec_attn = decoder(
             decoder_in, memory_bank, memory_lengths=memory_lengths, step=step
         )
 
@@ -713,8 +711,8 @@ class Translator(object):
 
                 if src_map is not None:
                     src_map = src_map.index_select(1, select_indices)
-
-            self.model.decoders[self.model.decoder_ids[self.tgt_lang]].map_state(
+            decoder = self.model.decoders[self.model.decoder_ids[self.tgt_lang]]
+            decoder.map_state(
                 lambda state, dim: state.index_select(dim, select_indices))
 
         results["scores"] = beam.scores
