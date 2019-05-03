@@ -266,7 +266,8 @@ class Translator(object):
             gs = self._score_target(
                 batch, memory_bank, src_lengths, src_vocabs,
                 batch.src_map if use_src_map else None)
-            self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(src, memory_bank, enc_states)
+            self.model.decoders[self.model.decoder_ids[self.tgt_lang]].\
+                    init_state(src, memory_bank, enc_states)
         else:
             gs = [0] * batch_size
         return gs
@@ -542,7 +543,6 @@ class Translator(object):
         print(src_lengths)
         print(self.model.encoders[self.model.encoder_ids[self.src_lang]])
 
-        import pdb; pdb.set_trace()
         enc_states, memory_bank, src_lengths = self.model.encoders[
                 self.model.encoder_ids[self.src_lang]](src, src_lengths)
         if src_lengths is None:
@@ -584,7 +584,8 @@ class Translator(object):
                 attn = dec_attn["std"]
             else:
                 attn = None
-            log_probs = self.model.generators[self.model.decoder_ids[self.tgt_lang]](dec_out.squeeze(0))
+            log_probs = self.model.generators\
+                    [self.model.decoder_ids[self.tgt_lang]](dec_out.squeeze(0))
             # returns [(batch_size x beam_size) , vocab ] when 1 step
             # or [ tgt_len, batch_size, vocab ] when full sentence
         else:
