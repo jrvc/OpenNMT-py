@@ -118,8 +118,8 @@ def save_fields_to_vocab(fields):
     return vocab
 
 def AddCounter(lang_tuple, lang, dictLangFreqs):
-    Vocab = lang_tuple[1]
-    freqs = Vocab.freqs
+    Vocab = lang_tuple.fields[0][1]
+    freqs = Vocab.vocab.freqs
     c = dictLangFreqs[lang]
     c += freqs
     dictLangFreqs[lang] = c
@@ -161,11 +161,12 @@ def main():
         dictLangFreqs[lang] = Counter()
 
     # update frequencies to take into account all the files
+    import ipdb; ipdb.set_trace()
     for i in range(len(langpairs)):
           vocab_object = torch.load(train_dataset_pref+'/'+vocabfiles[i])
           src_lang, tgt_lang = langpairs[i].split('-')
-          AddCounter(vocab_object[0], src_lang, dictLangFreqs)
-          AddCounter(vocab_object[1], tgt_lang, dictLangFreqs)
+          AddCounter(vocab_object['src'], src_lang, dictLangFreqs)
+          AddCounter(vocab_object['tgt'], tgt_lang, dictLangFreqs)
 
     #ipdb.set_trace()
     """ saving the new vocab """

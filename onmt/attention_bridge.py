@@ -20,7 +20,7 @@ class AttentionBridge(nn.Module):
         self.ws1 = nn.Linear(d, u, bias=True)
         self.ws2 = nn.Linear(u, r, bias=True)
         self.relu = nn.ReLU()
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim=1)
         self.attention_hops = r
         self.M = None
 
