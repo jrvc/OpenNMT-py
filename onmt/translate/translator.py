@@ -266,7 +266,7 @@ class Translator(object):
             gs = self._score_target(
                 batch, memory_bank, src_lengths, src_vocabs,
                 batch.src_map if use_src_map else None)
-            self.model.decoder.init_state(src, memory_bank, enc_states)
+            self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(src, memory_bank, enc_states)
         else:
             gs = [0] * batch_size
         return gs
@@ -539,8 +539,10 @@ class Translator(object):
         #enc_states, memory_bank, src_lengths = self.model.encoder(
         #    src, src_lengths)
         print(src.shape)
+        print(src_lengths)
         print(self.model.encoders[self.model.encoder_ids[self.src_lang]])
 
+        import pdb; pdb.set_trace()
         enc_states, memory_bank, src_lengths = self.model.encoders[
                 self.model.encoder_ids[self.src_lang]](src, src_lengths)
         if src_lengths is None:
@@ -572,7 +574,7 @@ class Translator(object):
         # and [src_len, batch, hidden] as memory_bank
         # in case of inference tgt_len = 1, batch = beam times batch_size
         # in case of Gold Scoring tgt_len = actual length, batch = 1 batch
-        dec_out, dec_attn = self.model.decoder(
+        dec_out, dec_attn = self.model.decoders[self.model.decoder_ids[self.tgt_lang]](
             decoder_in, memory_bank, memory_lengths=memory_lengths, step=step
         )
 
@@ -582,7 +584,7 @@ class Translator(object):
                 attn = dec_attn["std"]
             else:
                 attn = None
-            log_probs = self.model.generator(dec_out.squeeze(0))
+            log_probs = self.model.generators[self.model.decoder_ids[self.tgt_lang]](dec_out.squeeze(0))
             # returns [(batch_size x beam_size) , vocab ] when 1 step
             # or [ tgt_len, batch_size, vocab ] when full sentence
         else:
@@ -628,7 +630,10 @@ class Translator(object):
 
         # (1) Run the encoder on the src.
         src, enc_states, memory_bank, src_lengths = self._run_encoder(batch)
-        self.model.decoder.init_state(src, memory_bank, enc_states)
+        self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
+                src, memory_bank, enc_states)
+
+        #self.model.decoder.init_state(src, memory_bank, enc_states)
 
         results = {
             "predictions": None,
@@ -643,7 +648,7 @@ class Translator(object):
         # We use batch_size x beam_size
         src_map = (tile(batch.src_map, beam_size, dim=1)
                    if use_src_map else None)
-        self.model.decoder.map_state(
+        self.model.decoders[self.model.decoder_ids[self.tgt_lang]].map_state(
             lambda state, dim: tile(state, beam_size, dim=dim))
 
         if isinstance(memory_bank, tuple):
@@ -708,7 +713,7 @@ class Translator(object):
                 if src_map is not None:
                     src_map = src_map.index_select(1, select_indices)
 
-            self.model.decoder.map_state(
+            self.model.decoders[self.model.decoder_ids[self.tgt_lang]].map_state(
                 lambda state, dim: state.index_select(dim, select_indices))
 
         results["scores"] = beam.scores
