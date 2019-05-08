@@ -61,8 +61,7 @@ class MultiTaskModel(nn.Module):
         encoder = self.encoders[self.encoder_ids[src_task]]
         decoder = self.decoders[self.decoder_ids[tgt_task]]
 
-        # TODO: resolve dummy
-        enc_final, memory_bank, dummy = encoder(src, lengths)
+        enc_final, memory_bank, lengths = encoder(src, lengths)
 
 
         # Implement attention bridge/compound attention

@@ -137,7 +137,6 @@ def main(opt, device_id):
 
         generators[tgt_lang] = generator
 
-        test = build_dataset_iter('train', fields, data_path, opt)
         # add this dataset iterator to the training iterators
         train_iters[(src_lang, tgt_lang)] = build_dataset_iter('train',
                                                                 fields,

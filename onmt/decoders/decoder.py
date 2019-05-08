@@ -166,11 +166,26 @@ class RNNDecoderBase(DecoderBase):
                                     hidden[1:hidden.size(0):2]], 2)
             return hidden
 
+        #memory bank: [r,bsz,nhid]
+        output = memory_bank.transpose(0, 1).contiguous() # [bsz, r, nhid]
+
+        output = torch.mean(output, 1) #[bsz, nhid]
+        x2 = output.unsqueeze(0) #[bsz*nhid]
+        #TODO: created two times beacuse we use two layers.. Change in a 
+        # more general way, according to the number of decoder layers
+        concat = torch.cat((x2, x2))
+        tupl = tuple((concat,concat))
+
+        #return RNNDecoderState(self.hidden_size, tupl)
+        self.state["hidden"] = tupl
+
+        """
         if isinstance(encoder_final, tuple):  # LSTM
             self.state["hidden"] = tuple(_fix_enc_hidden(enc_hid)
                                          for enc_hid in encoder_final)
         else:  # GRU
             self.state["hidden"] = (_fix_enc_hidden(encoder_final), )
+        """
 
         # Init the input feed.
         batch_size = self.state["hidden"][0].size(1)
