@@ -241,7 +241,7 @@ class Trainer(object):
         report_stats = onmt.utils.Statistics()
         self._start_report_manager(start_time=total_stats.start_time)
 
-        true_batches = []
+        #true_batches = []
 
         # init every train iter
         #train_iters = {k: self._accum_batches(f)
@@ -291,7 +291,7 @@ class Trainer(object):
             setattr(batch, 'src_lang', src_lang)
             setattr(batch, 'tgt_lang', tgt_lang)
 
-            true_batches.append(batch)
+            #true_batches.append(batch)
 
             if self.gpu_verbose_level > 1:
                 logger.info("GpuRank %d: index: %d", self.gpu_rank, i)
@@ -306,8 +306,10 @@ class Trainer(object):
                                     (normalization))
 
             self._gradient_accumulation(
-                true_batches, normalization, total_stats,
+                [batch], normalization, total_stats,
                 report_stats)
+
+            #true_batches = []
 
             if self.average_decay > 0 and i % self.average_every == 0:
                 self._update_average(step)
@@ -319,12 +321,13 @@ class Trainer(object):
 
             for lang_pair in valid_iter_fcts.items():
                 if lang_pair is not None and step % valid_steps == 0:
-                    valid_iter = lang_pair[1]
+                    valid_iter_fct = lang_pair[1]
                     src_tgt = lang_pair[0]
                     logger.info('Current language pair: {}'.format(src_tgt))
                     if self.gpu_verbose_level > 0:
                         logger.info('GpuRank %d: validate step %d'
                                     % (self.gpu_rank, step))
+                    valid_iter = valid_iter_fct()
                     valid_stats = self.validate(
                         valid_iter, src_tgt, moving_average=self.moving_average)
                     if self.gpu_verbose_level > 0:
