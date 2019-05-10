@@ -40,6 +40,13 @@ def configure_process(opt, device_id):
         torch.cuda.set_device(device_id)
     set_random_seed(opt.seed, device_id >= 0)
 
+def build_dataset_iter_fct(dataset_name, fields_, opt_, data_path, is_train=True):
+
+    def train_iter_wrapper():
+        return build_dataset_iter(dataset_name, fields_,
+                                opt_, data_path, is_train)
+
+    return train_iter_wrapper
 
 def main(opt, device_id):
     # NOTE: It's important that ``opt`` has been validated and updated
@@ -138,12 +145,12 @@ def main(opt, device_id):
         generators[tgt_lang] = generator
 
         # add this dataset iterator to the training iterators
-        train_iters[(src_lang, tgt_lang)] = build_dataset_iter('train',
+        train_iters[(src_lang, tgt_lang)] = build_dataset_iter_fct('train',
                                                                 fields,
                                                                 data_path,
                                                                 opt)
         # add this dataset iterator to the validation iterators
-        valid_iters[(src_lang, tgt_lang)] = build_dataset_iter('valid',
+        valid_iters[(src_lang, tgt_lang)] = build_dataset_iter_fct('valid',
                                                                 fields,
                                                                 data_path,
                                                                 opt,

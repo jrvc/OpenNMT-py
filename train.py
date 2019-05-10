@@ -106,4 +106,5 @@ if __name__ == "__main__":
     parser = _get_parser()
 
     opt = parser.parse_args()
-    main(opt)
+    import cProfile
+    cProfile.run('main(opt)')

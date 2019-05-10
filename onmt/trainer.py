@@ -244,7 +244,8 @@ class Trainer(object):
         true_batches = []
 
         # init every train iter
-        train_iters = {k: self._accum_batches(f)
+        #train_iters = {k: self._accum_batches(f)
+        train_iters = {k: (b for b in f())
                 for k, f in train_iter_fcts.items()}
 
         step = self.optim.training_step
@@ -260,6 +261,12 @@ class Trainer(object):
 
             train_iter = train_iters[(src_lang, tgt_lang)]
 
+            if self.n_gpu > 1:
+                train_iter = itertools.islice(
+                    train_iter, self.gpu_rank, None, self.n_gpu)
+
+            train_iter = self._accum_batches(train_iter)
+
             try:
                 batch, normalization = next(train_iter)
             except:
@@ -267,8 +274,17 @@ class Trainer(object):
                 logger.info('recreating {}-{} dataset'.format(src_lang,
                                                             tgt_lang))
                 train_iters[(src_lang, tgt_lang)] = \
-                   (self._accum_batches(train_iter_fcts[(src_lang, tgt_lang)]))
-                batch, normalization = next(train_iters[(src_lang, tgt_lang)])
+                   (b for b in train_iter_fcts[(src_lang, tgt_lang)])
+                   #(self._accum_batches(train_iter_fcts[(src_lang, tgt_lang)]))
+
+                train_iter = train_iters[(src_lang, tgt_lang)]
+
+                if self.n_gpu > 1:
+                    train_iter = itertools.islice(
+                        train_iter, self.gpu_rank, None, self.n_gpu)
+
+                train_iter = self._accum_batches(train_iter)
+                batch, normalization = next(train_iter)
 
             batch = batch[0]
 
@@ -276,10 +292,6 @@ class Trainer(object):
             setattr(batch, 'tgt_lang', tgt_lang)
 
             true_batches.append(batch)
-
-            if self.n_gpu > 1:
-                train_iter = itertools.islice(
-                    train_iter, self.gpu_rank, None, self.n_gpu)
 
             if self.gpu_verbose_level > 1:
                 logger.info("GpuRank %d: index: %d", self.gpu_rank, i)
