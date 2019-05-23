@@ -80,10 +80,10 @@ class MultiTaskModel(nn.Module):
         #            else dec_state,
         #            memory_lengths=lengths)
 
-        if self.multigpu:
-            # Not yet supported on multi-gpu
-            dec_state = None
-            attns = None
+        #if self.multigpu:
+        #    # Not yet supported on multi-gpu
+        #    dec_state = None
+        #    attns = None
         return decoder_outputs, attns, alphas
 
 
