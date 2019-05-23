@@ -34,7 +34,12 @@ All dependencies can be installed via:
 pip install -r requirements.txt
 ```
 
-Note that we currently only support PyTorch 1.0.0
+NOTE: If you have MemoryError in the install try to use: 
+
+```bash
+pip install -r requirements.txt --no-cache-dir
+```
+Note that we currently only support PyTorch 1.1 (should work with 1.0)
 
 ## Features
 

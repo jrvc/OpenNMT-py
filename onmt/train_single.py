@@ -5,7 +5,7 @@ import os
 import torch
 
 from onmt.inputters.inputter import build_dataset_iter, \
-    load_old_vocab, old_style_vocab
+    load_old_vocab, old_style_vocab, MultipleDatasetIterator
 from onmt.model_builder import build_model, build_embeddings_then_encoder, \
     build_decoder_and_generator
 from onmt.utils.optimizers import Optimizer
@@ -177,7 +177,16 @@ def main(opt, device_id):
         opt, device_id, model, fields, optim, generators, tgt_vocabs,
         model_saver=model_saver)
 
-    #train_iter = build_dataset_iter("train", fields, opt)
+    #train_iterables = []
+    #if len(opt.data_ids) > 1:
+    #    for train_id in opt.data_ids:
+    #        shard_base = "train_" + train_id
+    #        iterable = build_dataset_iter(shard_base, fields, opt, multi=True)
+    #        train_iterables.append(iterable)
+    #    train_iter = MultipleDatasetIterator(train_iterables, device_id, opt)
+    #else:
+    #    train_iter = build_dataset_iter("train", fields, opt)
+
     #valid_iter = build_dataset_iter(
     #    "valid", fields, opt, is_train=False)
 
