@@ -177,6 +177,7 @@ def main(opt, device_id):
         opt, device_id, model, fields, optim, generators, tgt_vocabs,
         model_saver=model_saver)
 
+    # TODO: not implemented yet
     #train_iterables = []
     #if len(opt.data_ids) > 1:
     #    for train_id in opt.data_ids:
