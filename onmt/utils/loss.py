@@ -94,6 +94,15 @@ def build_loss_from_generator_and_vocab(tgt_field, generator,
     return compute
 
 
+def Frobenius(mat):
+    size = mat.size()
+    if len(size) == 3:  # batched matrix
+        ret = (torch.sum(torch.sum((mat ** 2), 1), 1).squeeze() + 1e-10) ** 0.5
+        return torch.sum(ret) / size[0]
+    else:
+        raise Exception('matrix for computing Frobenius norm should be with 3 dims')
+
+
 class LossComputeBase(nn.Module):
     """
     Class for managing efficient loss computation. Handles
@@ -156,7 +165,10 @@ class LossComputeBase(nn.Module):
                  normalization=1.0,
                  shard_size=0,
                  trunc_start=0,
-                 trunc_size=None):
+                 trunc_size=None,
+                 alphasZ=None,
+                 I=None,
+                 activate_extra_loss=False):
         """Compute the forward loss, possibly in shards in which case this
         method also runs the backward pass and returns ``None`` as the loss
         value.
@@ -192,9 +204,15 @@ class LossComputeBase(nn.Module):
             loss, stats = self._compute_loss(batch, **shard_state)
             return loss / float(normalization), stats
         batch_stats = onmt.utils.Statistics()
+
+        if activate_extra_loss:
+            attentionT = torch.transpose(alphasZ, 1, 2).contiguous()
+            extra_loss = (Frobenius(torch.bmm(alphasZ, attentionT) - I[:alphasZ.size(0)]) * 1.0)
         for shard in shards(shard_state, shard_size):
             loss, stats = self._compute_loss(batch, **shard)
-            loss.div(float(normalization)).backward()
+            if activate_extra_loss:
+                loss=torch.add(loss,extra_loss)
+            loss.div(float(normalization)).backward(retain_graph=True)
             batch_stats.update(stats)
         return None, batch_stats
 

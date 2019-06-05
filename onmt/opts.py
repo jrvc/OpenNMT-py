@@ -564,6 +564,8 @@ def train_opts(parser):
             IMPORTANT:
             Must choose attention_matrix if -encoder_type transformer
             Must chose rnn_final state if -use_attention_bridge is NOT activated """)
+    group.add('--activate_extra_loss', '-activate_extra_loss',
+            action='store_true', help="""Activate extra loss""")
 
 def translate_opts(parser):
     """ Translation / inference options """

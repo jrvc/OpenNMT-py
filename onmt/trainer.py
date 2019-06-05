@@ -12,6 +12,7 @@
 from copy import deepcopy
 import itertools
 import torch
+from torch.autograd import Variable
 import traceback
 import random
 
@@ -75,6 +76,8 @@ def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs, 
     average_every = opt.average_every
     dropout = opt.dropout
     dropout_steps = opt.dropout_steps
+    activate_extra_loss = opt.activate_extra_loss
+    attention_heads = opt.attention_heads
     if device_id >= 0:
         gpu_rank = opt.gpu_ranks[device_id]
     else:
@@ -98,7 +101,9 @@ def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs, 
                            model_dtype=opt.model_dtype,
                            earlystopper=earlystopper,
                            dropout=dropout,
-                           dropout_steps=dropout_steps)
+                           dropout_steps=dropout_steps,
+                           activate_extra_loss=activate_extra_loss,
+                           attention_heads=attention_heads)
     return trainer
 
 
@@ -135,7 +140,8 @@ class Trainer(object):
                  n_gpu=1, gpu_rank=1,
                  gpu_verbose_level=0, report_manager=None, model_saver=None,
                  average_decay=0, average_every=1, model_dtype='fp32',
-                 earlystopper=None, dropout=[0.3], dropout_steps=[0]):
+                 earlystopper=None, dropout=[0.3], dropout_steps=[0],
+                 activate_extra_loss=False, attention_heads=0):
         # Basic attributes.
         self.model = model
         self.train_losses = train_losses
@@ -159,6 +165,8 @@ class Trainer(object):
         self.earlystopper = earlystopper
         self.dropout = dropout
         self.dropout_steps = dropout_steps
+        self.activate_extra_loss=activate_extra_loss
+        self.attention_heads=attention_heads
 
         for i in range(len(self.accum_count_l)):
             assert self.accum_count_l[i] > 0
@@ -284,7 +292,7 @@ class Trainer(object):
 
                 self._gradient_accumulation(
                     batches, normalization, total_stats, src_lang, tgt_lang,
-                    report_stats)
+                    report_stats, self.activate_extra_loss)
 
                 if self.average_decay > 0 and i % self.average_every == 0:
                     self._update_average(step)
@@ -479,10 +487,13 @@ class Trainer(object):
 
         return stats
 
-    def _gradient_accumulation(self, true_batches, normalization, total_stats, src_lang, tgt_lang,
-                               report_stats):
+    def _gradient_accumulation(self, true_batches, normalization, total_stats,
+            src_lang, tgt_lang, report_stats, activate_extra_loss):
         if self.accum_count > 1:
             self.optim.zero_grad()
+
+        I = Variable(torch.stack([torch.eye(self.attention_heads) for i in range(len(true_batches[0]) ) ] )) #len(true_batchs[0] = true_batchs[0].__dict__['batch_size']
+        I = I.cuda() if self.n_gpu >= 1 else I
 
         for k, batch in enumerate(true_batches):
             target_size = batch.tgt.size(0)
@@ -507,7 +518,7 @@ class Trainer(object):
                 # 2. F-prop all but generator.
                 if self.accum_count == 1:
                     self.optim.zero_grad()
-                outputs, attns, alphas = self.model(src, tgt, src_lang, tgt_lang, src_lengths, bptt=bptt)
+                outputs, attns, alphasZ = self.model(src, tgt, src_lang, tgt_lang, src_lengths, bptt=bptt)
                 bptt = True
 
                 # 3. Compute loss.
@@ -519,7 +530,10 @@ class Trainer(object):
                         normalization=normalization,
                         shard_size=self.shard_size,
                         trunc_start=j,
-                        trunc_size=trunc_size)
+                        trunc_size=trunc_size,
+                        alphasZ=alphasZ,
+                        I=I,
+                        activate_extra_loss=activate_extra_loss)
 
                     if loss is not None:
                         self.optim.backward(loss)

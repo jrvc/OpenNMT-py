@@ -42,12 +42,10 @@ def save_fields_to_vocab(fields):
     return vocab
 
 def AddCounter(lang_tuple, lang, dictLangFreqs):
-    print(lang)
     Vocab = lang_tuple[1]
     freqs = Vocab.freqs
     c = dictLangFreqs[lang]
     c += freqs
-    print(c[list(c.keys())[0]])
     dictLangFreqs[lang] = c
 
 def fixVocab(langs, basepath, vocabname, basepathNewVocab):
