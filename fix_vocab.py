@@ -13,10 +13,10 @@ EOS_WORD = '</s>'
 
 def preprocess_opts(parser):
     group = parser.add_argument_group('Options')
-    group.add_argument('-languages', nargs='+', help="""List of language ids""")
-    group.add_argument('-base_path', help="""Path to directory containing vocabs""")
-    group.add_argument('-vocab_name', help="""Common name of the vocabs (<common_name>.<src>-<tgt>.vocab.pt)""")
-    group.add_argument('-new_vocab_path', help="""Path to existing directory for fixed vocabs""")
+    group.add_argument('-l', '-languages', nargs='+', required=True, help="""List of language ids""")
+    group.add_argument('-b', '-base_path', required=True, help="""Path to directory containing vocabs""")
+    group.add_argument('-v', '-vocab_name', required=True, help="""Common name of the vocabs (<common_name>.<src>-<tgt>.vocab.pt)""")
+    group.add_argument('-n', '-new_vocab_path', required=True, help="""Path to existing directory for fixed vocabs""")
 
 def parse_args():
     """ Parsing arguments """
@@ -92,4 +92,4 @@ def fixVocab(langs, basepath, vocabname, basepathNewVocab):
 
 if __name__ == "__main__":
     opt = parse_args()
-    fixVocab(opt.languages, opt.base_path, opt.vocab_name, opt.new_vocab_path)
+    fixVocab(opt.l, opt.b, opt.v, opt.n)

@@ -161,7 +161,7 @@ def main():
         dictLangFreqs[lang] = Counter()
 
     # update frequencies to take into account all the files
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
     for i in range(len(langpairs)):
           vocab_object = torch.load(train_dataset_pref+'/'+vocabfiles[i])
           src_lang, tgt_lang = langpairs[i].split('-')

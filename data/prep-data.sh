@@ -85,4 +85,7 @@ done
 python $ONMT/preprocess_build_vocab.py \
     -train_dataset_prefixes $OUTPUT_DIR 
 
+# Fix vocabs
+python $ONMT/fix_vocab.py -l de en fr cs -b $OUTPUT_DIR -v m30k -n $OUTPUT_DIR
+
 cd $ONMT
