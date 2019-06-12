@@ -55,7 +55,7 @@ def fixVocab(langs, basepath, vocabname, basepathNewVocab):
 
     for langSRC in langs:
         for langTGT in langs:
-            path=basepath+vocabname+"."+langSRC+"-"+langTGT+".vocab.pt"
+            path=basepath+"/"+vocabname+"."+langSRC+"-"+langTGT+".vocab.pt"
             if os.path.isfile(path):
                 vocab_object = torch.load(path)
                 # we have stoi and freq
@@ -87,7 +87,7 @@ def fixVocab(langs, basepath, vocabname, basepathNewVocab):
                                   max_size=50000)
             fields["src"].vocab = vocab_src
 
-            vocab_file = basepathNewVocab+vocabname+"."+str(langSRC)+"-"+str(langTGT)+".vocab.pt"
+            vocab_file = basepathNewVocab+"/"+vocabname+"."+str(langSRC)+"-"+str(langTGT)+".vocab.pt"
             torch.save(save_fields_to_vocab(fields), vocab_file)
 
 if __name__ == "__main__":
