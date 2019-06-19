@@ -4,7 +4,7 @@
 # get the multi30k dataset
 if [ ! -d multi30k ]; then
     mkdir multi30k && cd multi30k
-    git clone git@github.com:multi30k/dataset.git
+    git clone --recursive https://github.com/multi30k/dataset.git dataset
     cd ..
 fi
 
@@ -17,22 +17,23 @@ mkdir -p $OUTPUT_DIR && cd $OUTPUT_DIR
 
 
 # BPE encodings
-pip install subword-nmt
+#pip install subword-nmt
 #RECALL: The original segmentation can be restored with the replacement:
 #            sed -r 's/(@@ )|(@@ ?$)//g'
 train_file=$DATADIR/train.lc.norm.tok
-bpe_trainfile=$OUTPUT_DIR/train.lc.norm.tok.bpe10k
+bpe_trainfile=$OUTPUT_DIR/train.lc.norm.tok.bpe
 
 valid_file=$DATADIR/val.lc.norm.tok
-bpe_validfile=$OUTPUT_DIR/val.lc.norm.tok.bpe10k
+bpe_validfile=$OUTPUT_DIR/val.lc.norm.tok.bpe
 
 test_file=$DATADIR/test_2016_flickr.lc.norm.tok
-bpe_testfile=$OUTPUT_DIR/test_2016_flickr.lc.norm.tok.bpe10k
+bpe_testfile=$OUTPUT_DIR/test_2016_flickr.lc.norm.tok.bpe
 
-num_operations='80000' # approx 10k per language  
+num_operations='40000' # approx 10k per language  
 codes_file=$OUTPUT_DIR/codecs40k 
 vocab_file=$OUTPUT_DIR/bpe_vocab
 
+echo "Learning BPE on all the training text"
 
 # Learn BPE on all the training text, and get resulting vocabulary for each:
 subword-nmt learn-joint-bpe-and-vocab \
@@ -44,9 +45,9 @@ subword-nmt learn-joint-bpe-and-vocab \
 for lang in cs de en fr
 do
   # re-apply byte pair encoding with vocabulary filter. # for test/dev data, re-use the same options.
-  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 20 < ${train_file}.${lang} > ${bpe_trainfile}.${lang}
-  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 20  < ${test_file}.${lang}  > ${bpe_testfile}.${lang}
-  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 20 < ${valid_file}.${lang} > ${bpe_validfile}.${lang}
+  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 1 < ${train_file}.${lang} > ${bpe_trainfile}.${lang}
+  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 1  < ${test_file}.${lang}  > ${bpe_testfile}.${lang}
+  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 1 < ${valid_file}.${lang} > ${bpe_validfile}.${lang}
 
 done
 

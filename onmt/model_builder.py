@@ -83,11 +83,21 @@ def load_test_multitask_model(opt, model_path=None):
     checkpoint = torch.load(model_path,
                             map_location=lambda storage, loc: storage)
     model = checkpoint['whole_model']
+    vocab = checkpoint['vocab']
+    if inputters.old_style_vocab(vocab):
+        fields = inputters.load_old_vocab(
+            vocab, opt.data_type, dynamic_dict=model_opt.copy_attn
+        )
+    else:
+        fields = vocab
+
+    model_opt = ArgumentParser.ckpt_model_opts(checkpoint['opt'])
     device = torch.device("cuda" if use_gpu(opt) else "cpu")
     model.to(device)
 
     model.eval()
-    return model
+    
+    return fields, model, model_opt
 
 def load_test_model(opt, model_path=None):
     if model_path is None:
