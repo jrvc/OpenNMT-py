@@ -172,9 +172,7 @@ class RNNDecoderBase(DecoderBase):
 
         output = torch.mean(output, 1) #[bsz, nhid]
         x2 = output.unsqueeze(0) #[bsz*nhid]
-        #TODO: created two times beacuse we use two layers.. Change in a 
-        # more general way, according to the number of decoder layers
-        #concat = torch.cat((x2, x2))
+
         concat = torch.cat(tuple(x2 for i in range(self.num_layers)))
         tupl = tuple((concat,concat))
 
