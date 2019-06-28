@@ -25,10 +25,10 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
 
     load_test_model = onmt.decoders.ensemble.load_test_model \
         if len(opt.models) > 1 else onmt.model_builder.load_test_model
-    fields, model, model_opt = load_test_model(opt)
+    #fields, model, model_opt = load_test_model(opt)
 
-    # overwrite model
-    model = onmt.model_builder.load_test_multitask_model(opt)
+    # multitask model
+    fields, model, model_opt = onmt.model_builder.load_test_multitask_model(opt)
 
     scorer = onmt.translate.GNMTGlobalScorer.from_opt(opt)
 
