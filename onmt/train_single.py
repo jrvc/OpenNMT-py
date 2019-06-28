@@ -130,7 +130,9 @@ def main(opt, device_id):
                 src_embeddings.word_lut.weight = weightToShare
         firstTime = False
 
-        if src_lang in mapLang2Emb:
+        #TEST
+        #if src_lang in mapLang2Emb:
+        if src_lang in mapLang2Emb and model_opt.model_type == "text":
                 encoder.embeddings.word_lut.weight = mapLang2Emb.get(src_lang)
         #TEST
         #else:
