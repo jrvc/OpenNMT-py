@@ -132,14 +132,18 @@ def main(opt, device_id):
 
         if src_lang in mapLang2Emb:
                 encoder.embeddings.word_lut.weight = mapLang2Emb.get(src_lang)
-        else:
+        #TEST
+        #else:
+        elif model_opt.model_type == "text":
                 mapLang2Emb[src_lang] = src_embeddings.word_lut.weight
         if tgt_lang in mapLang2Emb:
                 decoder.embeddings.word_lut.weight = mapLang2Emb.get(tgt_lang)
         else:
             mapLang2Emb[tgt_lang] = tgt_embeddings.word_lut.weight
 
-        src_vocabs[src_lang] = fields['src'].base_field.vocab
+        #TEST
+        if model_opt.model_type == "text":
+            src_vocabs[src_lang] = fields['src'].base_field.vocab
         tgt_vocabs[tgt_lang] = fields['tgt'].base_field.vocab
 
         generators[tgt_lang] = generator

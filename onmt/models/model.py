@@ -63,6 +63,8 @@ class MultiTaskModel(nn.Module):
 
         enc_final, memory_bank, lengths = encoder(src, lengths)
 
+        #TEST
+        alphas = None
 
         # Implement attention bridge/compound attention
         if self.use_attention_bridge:
