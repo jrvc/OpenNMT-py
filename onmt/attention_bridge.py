@@ -59,6 +59,7 @@ class AttentionBridge(nn.Module):
         #TEST
         if self.model_type == "text":
             penalized_alphas = alphas + (-10000 * (concatenated_inp == 1).float()) # [bsz, hop, len] + [bsz, hop, len]
+            alphas = penalized_alphas
 
         alphas = self.softmax(alphas.view(-1, size[1]))  # [bsz*hop, len]
         alphas = alphas.view(size[0], self.attention_hops, size[1])  # [bsz, hop, len]
