@@ -43,22 +43,20 @@ class AttentionBridge(nn.Module):
         size = outp.size()  # [bsz, len, nhid]
         compressed_embeddings = outp.view(-1, size[2])  # [bsz*len, nhid*2]
 
-        #TEST
-        if self.model_type == "text":
-            transformed_inp = torch.transpose(inp, 0, 1).contiguous()  # [bsz, len]
-            transformed_inp = transformed_inp.view(size[0], 1, size[1])  # [bsz, 1, len]
-
-            concatenated_inp = [transformed_inp for i in range(self.attention_hops)]
-            concatenated_inp = torch.cat(concatenated_inp, 1)  # [bsz, hop, len]
-
         hbar = self.relu(self.ws1(compressed_embeddings))  # [bsz*len, attention-unit]
 
         alphas = self.ws2(hbar).view(size[0], size[1], -1)  # [bsz, len, hop]
         alphas = torch.transpose(alphas, 1, 2).contiguous()  # [bsz, hop, len]
 
-        #TEST
+        #Penalize alphas if "text"
         if self.model_type == "text":
+            transformed_inp = torch.transpose(inp, 0, 1).contiguous()  # [bsz, len]
+            transformed_inp = transformed_inp.view(size[0], 1, size[1])  # [bsz, 1, len]
+            concatenated_inp = [transformed_inp for i in range(self.attention_hops)]
+            concatenated_inp = torch.cat(concatenated_inp, 1)  # [bsz, hop, len]
+
             penalized_alphas = alphas + (-10000 * (concatenated_inp == 1).float()) # [bsz, hop, len] + [bsz, hop, len]
+            alphas = penalized_alphas
 
         alphas = self.softmax(alphas.view(-1, size[1]))  # [bsz*hop, len]
         alphas = alphas.view(size[0], self.attention_hops, size[1])  # [bsz, hop, len]
