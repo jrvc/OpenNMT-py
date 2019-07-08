@@ -59,7 +59,7 @@ def model_opts(parser):
 
     # Encoder-Decoder Options
     group = parser.add_argument_group('Model- Encoder-Decoder')
-    group.add('--model_type', '-model_type', default='text',
+    group.add('--model_type', '-model_type', nargs='+', default='text',
               choices=['text', 'img', 'audio'],
               help="Type of source model to use. Allows "
                    "the system to incorporate non-text inputs. "
@@ -68,7 +68,7 @@ def model_opts(parser):
               choices=['fp32', 'fp16'],
               help='Data type of the model.')
 
-    group.add('--encoder_type', '-encoder_type', type=str, default='rnn',
+    group.add('--encoder_type', '-encoder_type', nargs='+', type=str, default='rnn',
               choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn'],
               help="Type of encoder layer to use. Non-RNN layers "
                    "are experimental. Options are "
@@ -81,23 +81,23 @@ def model_opts(parser):
 
     group.add('--layers', '-layers', type=int, default=-1,
               help='Number of layers in enc/dec.')
-    group.add('--enc_layers', '-enc_layers', type=int, default=2,
+    group.add('--enc_layers', '-enc_layers', nargs='+', type=int, default=2,
               help='Number of layers in the encoder')
-    group.add('--dec_layers', '-dec_layers', type=int, default=2,
+    group.add('--dec_layers', '-dec_layers', nargs='+', type=int, default=2,
               help='Number of layers in the decoder')
     group.add('--rnn_size', '-rnn_size', type=int, default=-1,
               help="Size of rnn hidden states. Overwrites "
                    "enc_rnn_size and dec_rnn_size")
-    group.add('--enc_rnn_size', '-enc_rnn_size', type=int, default=500,
+    group.add('--enc_rnn_size', '-enc_rnn_size' , type=int, default=500,
               help="Size of encoder rnn hidden states. "
                    "Must be equal to dec_rnn_size except for "
                    "speech-to-text.")
-    group.add('--dec_rnn_size', '-dec_rnn_size', type=int, default=500,
+    group.add('--dec_rnn_size', '-dec_rnn_size' , type=int, default=500,
               help="Size of decoder rnn hidden states. "
                    "Must be equal to enc_rnn_size except for "
                    "speech-to-text.")
     group.add('--audio_enc_pooling', '-audio_enc_pooling',
-              type=str, default='1',
+              type=str, nargs='+', default='1',
               help="The amount of pooling of audio encoder, "
                    "either the same amount of pooling across all layers "
                    "indicated by a single number, or different amounts of "
@@ -116,7 +116,7 @@ def model_opts(parser):
     group.add('--bridge', '-bridge', action="store_true",
               help="Have an additional layer between the last encoder "
                    "state and the first decoder state")
-    group.add('--rnn_type', '-rnn_type', type=str, default='LSTM',
+    group.add('--rnn_type', '-rnn_type', type=str, nargs='+', default='LSTM',
               choices=['LSTM', 'GRU', 'SRU'],
               action=CheckSRU,
               help="The gate type to use in the RNNs")
