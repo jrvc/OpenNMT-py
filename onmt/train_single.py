@@ -108,7 +108,6 @@ def main(opt, device_id):
     for index in range(len(opt.src_tgt)):
         src_tgt_lang = opt.src_tgt[index]
         data_path = opt.data[index]
-        import ipdb; ipdb.set_trace()
         local_enc_dec_opts = AttrDict({key:model_opt.__dict__[key] for key in model_opt.__dict__.keys()})
         local_enc_dec_opts.model_type = update_to_local_attr(model_opt.model_type, index)
         #local_enc_dec_opts.audio_enc_pooling = model_opt.audio_enc_pooling[index] 
