@@ -48,6 +48,22 @@ def build_dataset_iter_fct(dataset_name, fields_, opt_, data_path, is_train=True
 
     return train_iter_wrapper
 
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+def update_to_local_attr(attribute, index):
+    'return local attribure for encoders and decoders'
+    if type(attribute) is list:
+        if len(attribute) > 1:
+            attr = attribute[index]
+        else:
+            attr = attribute[0]
+    else:
+        attr = attribute
+    return attr
+
 def main(opt, device_id):
     # NOTE: It's important that ``opt`` has been validated and updated
     # at this point.
@@ -88,7 +104,21 @@ def main(opt, device_id):
     # we share the word embedding space when source lang and target lang are the same
     mapLang2Emb = {}
 
-    for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
+    #for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
+    for index in range(len(opt.src_tgt)):
+        src_tgt_lang = opt.src_tgt[index]
+        data_path = opt.data[index]
+        local_enc_dec_opts = AttrDict({key:model_opt.__dict__[key] for key in model_opt.__dict__.keys()})
+        local_enc_dec_opts.model_type = update_to_local_attr(model_opt.model_type, index)
+        #local_enc_dec_opts.audio_enc_pooling = model_opt.audio_enc_pooling[index] 
+        local_enc_dec_opts.audio_enc_pooling = update_to_local_attr(model_opt.audio_enc_pooling, index)
+        local_enc_dec_opts.enc_layers = update_to_local_attr(model_opt.enc_layers, index) 
+        local_enc_dec_opts.dec_layers = update_to_local_attr(model_opt.dec_layers, index)
+        local_enc_dec_opts.rnn_type   = update_to_local_attr(model_opt.rnn_type, index)
+        local_enc_dec_opts.encoder_type = update_to_local_attr(model_opt.encoder_type, index)
+        #local_enc_dec_opts.dec_rnn_size = model_opt.dec_rnn_size[index]
+
+
         src_lang, tgt_lang = src_tgt_lang.split('-')
 
         vocab = torch.load(data_path + '.vocab.pt')
@@ -113,11 +143,11 @@ def main(opt, device_id):
                     logger.info(' * %s vocab size = %d' % (sn, len(sf.vocab)))
 
         # Build model.
-        encoder, src_embeddings = build_embeddings_then_encoder(model_opt, fields)
+        encoder, src_embeddings = build_embeddings_then_encoder(local_enc_dec_opts, fields)
 
         encoders[src_lang] = encoder
 
-        decoder, generator, tgt_embeddings = build_decoder_and_generator(model_opt, fields)
+        decoder, generator, tgt_embeddings = build_decoder_and_generator(local_enc_dec_opts, fields)
 
         decoders[tgt_lang] = decoder
 
