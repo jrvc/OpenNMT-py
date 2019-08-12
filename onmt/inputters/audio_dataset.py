@@ -36,7 +36,7 @@ class AudioDataReader(DataReaderBase):
     """
 
     def __init__(self, sample_rate=0, window_size=0, window_stride=0,
-                 window=None, normalize_audio=True, truncate=None):
+                 window=None, normalize_audio=True, truncate=None, n_mels=80):
         self._check_deps()
         self.sample_rate = sample_rate
         self.window_size = window_size
@@ -44,11 +44,12 @@ class AudioDataReader(DataReaderBase):
         self.window = window
         self.normalize_audio = normalize_audio
         self.truncate = truncate
+        self.n_mels = n_mels
 
     @classmethod
     def from_opt(cls, opt):
         return cls(sample_rate=opt.sample_rate, window_size=opt.window_size,
-                   window_stride=opt.window_stride, window=opt.window)
+                   window_stride=opt.window_stride, window=opt.window, n_mels=opt.n_mels)
 
     @classmethod
     def _check_deps(cls):
@@ -80,18 +81,16 @@ class AudioDataReader(DataReaderBase):
         n_fft = int(self.sample_rate * self.window_size)
         win_length = n_fft
         hop_length = int(self.sample_rate * self.window_stride)
-        # STFT
-        d = librosa.stft(sound, n_fft=n_fft, hop_length=hop_length,
-                         win_length=win_length, window=self.window)
-        spect, _ = librosa.magphase(d)
-        spect = np.log1p(spect)
-        spect = torch.FloatTensor(spect)
+        # Mel-scale fbanks
+        mel_fbanks = librosa.feature.melspectrogram(sound, n_fft=n_fft, hop_length=,
+                        win_length=win_length, window=self.window, n_mels = self.n_mels)
+        mel_fbanks = torch.FloatTensor(mel_fbanks)
         if self.normalize_audio:
-            mean = spect.mean()
-            std = spect.std()
-            spect.add_(-mean)
-            spect.div_(std)
-        return spect
+            mean = mel_fbanks.mean()
+            std = mel_fbanks.std()
+            mel_fbanks.add_(-mean)
+            mel_fbanks.div_(std)
+        return mel_fbanks
 
     def read(self, data, side, src_dir=None):
         """Read data into dicts.

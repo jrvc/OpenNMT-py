@@ -296,6 +296,8 @@ def preprocess_opts(parser):
               help="Window stride for spectrogram in seconds.")
     group.add('--window', '-window', default='hamming',
               help="Window type for spectrogram generation.")
+    group.add('--n_mels', '-n_mels', type=int, default=80,
+            help="Number Mel-scale filterbanks to extract")
 
     # Option most relevant to image input
     group.add('--image_channel_size', '-image_channel_size',
