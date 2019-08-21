@@ -82,7 +82,7 @@ class AudioDataReader(DataReaderBase):
         win_length = n_fft
         hop_length = int(self.sample_rate * self.window_stride)
         # Mel-scale fbanks
-        mel_fbanks = librosa.feature.melspectrogram(sound, n_fft=n_fft, hop_length=,
+        mel_fbanks = librosa.feature.melspectrogram(sound, n_fft=n_fft, hop_length=hop_length,
                         win_length=win_length, window=self.window, n_mels = self.n_mels)
         mel_fbanks = torch.FloatTensor(mel_fbanks)
         if self.normalize_audio:
