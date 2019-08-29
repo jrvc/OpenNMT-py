@@ -17,7 +17,7 @@ mkdir -p $OUTPUT_DIR && cd $OUTPUT_DIR
 
 
 # BPE encodings
-pip install subword-nmt
+pip install --user subword-nmt
 #RECALL: The original segmentation can be restored with the replacement:
 #            sed -r 's/(@@ )|(@@ ?$)//g'
 train_file=$DATADIR/train.lc.norm.tok
@@ -35,23 +35,29 @@ vocab_file=$OUTPUT_DIR/bpe_vocab
 
 
 # Learn BPE on all the training text, and get resulting vocabulary for each:
-subword-nmt learn-joint-bpe-and-vocab \
-         --input ${train_file}.{cs,de,en,fr} \
-         -s ${num_operations} \
-         -o ${codes_file} \
-         --write-vocabulary ${vocab_file}.{cs,de,en,fr}
+if [ ! -f ${vocab_file}.cs ]; then
+  subword-nmt learn-joint-bpe-and-vocab \
+           --input ${train_file}.{cs,de,en,fr} \
+           -s ${num_operations} \
+           -o ${codes_file} \
+           --write-vocabulary ${vocab_file}.{cs,de,en,fr}
 
-for lang in cs de en fr
-do
-  # re-apply byte pair encoding with vocabulary filter:
-  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 50 < ${train_file}.${lang} > ${bpe_trainfile}.${lang}
-  # for test/dev data, re-use the same options for consistency:
-  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 50 < ${test_file}.${lang}  > ${bpe_testfile}.${lang}
-  subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 50 < ${valid_file}.${lang} > ${bpe_validfile}.${lang}
+  for lang in cs de en fr
+  do
+    # re-apply byte pair encoding with vocabulary filter:
+    subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 50 < ${train_file}.${lang} > ${bpe_trainfile}.${lang}
+    # for test/dev data, re-use the same options for consistency:
+    subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 50 < ${test_file}.${lang}  > ${bpe_testfile}.${lang}
+    subword-nmt apply-bpe -c ${codes_file} --vocabulary ${vocab_file}.${lang} --vocabulary-threshold 50 < ${valid_file}.${lang} > ${bpe_validfile}.${lang}
 
-done
+  done
 
+else
+  echo -e ">>>> LOOKS LIKE YOU HAVE ALREADY RUN THE BPEing PART OF THIS SCRIPT. \
+           \n     PLEASE BACKUP THE FILES IN: $OUTPUT_DIR \
+           \n     AND RERUN THIS SCRIPT TO GENERATE AND APPLY NEW SUBWORD UNITS MODELS  <<<<<"
 
+fi
 
 # Pretrain with ONMT
 ALL_SAVE_DATA=""
