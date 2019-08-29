@@ -126,7 +126,6 @@ def AddCounter(lang_tuple, lang, dictLangFreqs):
     dictLangFreqs[lang] = c
 
 def main():
-    import ipdb; ipdb.set_trace(context=5)
     opt = parse_args()
     init_logger(opt.log_file)
     logger.info("Building & saving vocabulary...")
@@ -168,7 +167,6 @@ def main():
           AddCounter(vocab_object[0], src_lang, dictLangFreqs)
           AddCounter(vocab_object[1], tgt_lang, dictLangFreqs)
 
-    ipdb.set_trace()
     """ saving the new vocab """
     for i in range(len(langpairs)):
         langSRC, langTGT = langpairs[i].split('-')
