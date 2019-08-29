@@ -73,6 +73,8 @@ do
         -train_tgt $tgt_train_file \
         -valid_src $src_valid_file \
         -valid_tgt $tgt_valid_file \
+        -src_vocab ${vocab_file}.${src_lang} \
+        -tgt_vocab ${vocab_file}.${tgt_lang} \
         -save_data $SAVEDATA \
         -src_vocab_size 10000 \
         -tgt_vocab_size 10000
@@ -83,11 +85,11 @@ done
 # ---------------------------------------------------------------------------------------------
 #     CREATE A VOCAB. FOR EACH LANGUAGE, USING ALL OF THE DATASETS FOR THAT LANGUAGE.
 #----------------------------------------------------------------------------------------------
-python $ONMT/preprocess_build_vocab.py \
-    -train_dataset_prefixes $OUTPUT_DIR \
-    -share_vocab \
-    -src_vocab_size 10000 \
-    -tgt_vocab_size 10000
+#python $ONMT/preprocess_build_vocab.py \
+#    -train_dataset_prefixes $OUTPUT_DIR \
+#    -share_vocab \
+#    -src_vocab_size 10000 \
+#    -tgt_vocab_size 10000
 
 
 #
