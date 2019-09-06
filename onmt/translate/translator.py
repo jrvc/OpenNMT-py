@@ -23,8 +23,8 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
     if out_file is None:
         out_file = codecs.open(opt.output, 'w+', 'utf-8')
 
-    load_test_model = onmt.decoders.ensemble.load_test_model \
-        if len(opt.models) > 1 else onmt.model_builder.load_test_model
+    #load_test_model = onmt.decoders.ensemble.load_test_model \
+    #    if len(opt.models) > 1 else onmt.model_builder.load_test_model
     #fields, model, model_opt = load_test_model(opt)
 
     # multitask model
@@ -335,7 +335,6 @@ class Translator(object):
         all_predictions = []
 
         start_time = time.time()
-
         for batch in data_iter:
             batch_data = self.translate_batch(
                 batch, data.src_vocabs, attn_debug
@@ -539,7 +538,6 @@ class Translator(object):
 
         #enc_states, memory_bank, src_lengths = self.model.encoder(
         #    src, src_lengths)
-
         enc_states, memory_bank, src_lengths = self.model.encoders[
                 self.model.encoder_ids[self.src_lang]](src, src_lengths)
         if src_lengths is None:

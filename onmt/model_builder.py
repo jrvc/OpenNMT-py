@@ -84,12 +84,18 @@ def load_test_multitask_model(opt, model_path=None):
                             map_location=lambda storage, loc: storage)
     model = checkpoint['whole_model']
     vocab = checkpoint['vocab']
+    src_tgtpair = opt.src_lang+'-'+opt.tgt_lang
+    vocab = vocab if type(vocab) is dict else vocab[src_tgtpair]
     if inputters.old_style_vocab(vocab):
         fields = inputters.load_old_vocab(
             vocab, opt.data_type, dynamic_dict=model_opt.copy_attn
         )
     else:
         fields = vocab
+
+    if opt.data_type == 'audio' and not (type(checkpoint.get('vocab')['src']) is onmt.inputters.audio_dataset.AudioSeqField):
+        vocab_path = "/home/vazquezj/Documents/iwslt2019/_ready_to_train/onmt_ready/ENaudio_DEtext/data"
+        fields = torch.load(vocab_path + '.vocab.pt')
 
     model_opt = ArgumentParser.ckpt_model_opts(checkpoint['opt'])
     device = torch.device("cuda" if use_gpu(opt) else "cpu")

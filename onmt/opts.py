@@ -78,7 +78,6 @@ def model_opts(parser):
               help="Type of decoder layer to use. Non-RNN layers "
                    "are experimental. Options are "
                    "[rnn|transformer|cnn].")
-
     group.add('--layers', '-layers', type=int, default=-1,
               help='Number of layers in enc/dec.')
     group.add('--enc_layers', '-enc_layers', nargs='+', type=int, default=2,
@@ -745,7 +744,8 @@ def translate_multimodel(parser):
     group.add('--tgt_lang', '-tgt_lang', required=True,
             help="The 2-character source language code")
 
-
+    group.add('--n_mels', '-n_mels', type=int, default=80,
+            help="Number Mel-scale filterbanks to extract")
 # Copyright 2016 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.

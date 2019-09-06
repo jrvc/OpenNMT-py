@@ -96,6 +96,7 @@ def main(opt, device_id):
     generators = OrderedDict()
     src_vocabs = OrderedDict()
     tgt_vocabs = OrderedDict()
+    Fields_dict = OrderedDict()
 
     # variables needed for sharing the same embedding matrix across encoders and decoders
     firstTime=True
@@ -192,6 +193,7 @@ def main(opt, device_id):
                                                                 opt,
                                                                 is_train=False)
 
+        Fields_dict[src_tgt_lang] = fields
 
     # Build model.
     model = build_model(model_opt, opt, fields, encoders, decoders,
@@ -207,7 +209,7 @@ def main(opt, device_id):
     optim = Optimizer.from_opt(model, opt, checkpoint=checkpoint)
 
     # Build model saver
-    model_saver = build_model_saver(model_opt, opt, model, fields, optim)
+    model_saver = build_model_saver(model_opt, opt, model, Fields_dict, optim)
 
     trainer = build_trainer(
         opt, device_id, model, fields, optim, generators, tgt_vocabs,
