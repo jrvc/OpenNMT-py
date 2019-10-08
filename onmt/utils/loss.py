@@ -76,7 +76,7 @@ def build_loss_from_generator_and_vocab(tgt_field, generator,
         )
     elif opt.label_smoothing > 0 and train:
         criterion = LabelSmoothingLoss(
-            opt.label_smoothing, len(tgt_field.vocab), ignore_index=padding_idx
+            opt.label_smoothing, len(tgt_vocab), ignore_index=padding_idx
         )
     elif isinstance(generator[-1], LogSparsemax):
         criterion = SparsemaxLoss(ignore_index=padding_idx, reduction='sum')
@@ -249,7 +249,7 @@ class LabelSmoothingLoss(nn.Module):
         assert 0.0 < label_smoothing <= 1.0
         self.ignore_index = ignore_index
         super(LabelSmoothingLoss, self).__init__()
-
+        
         smoothing_value = label_smoothing / (tgt_vocab_size - 2)
         one_hot = torch.full((tgt_vocab_size,), smoothing_value)
         one_hot[self.ignore_index] = 0
