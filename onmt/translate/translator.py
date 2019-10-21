@@ -118,7 +118,8 @@ class Translator(object):
             out_file=None,
             report_score=True,
             logger=None,
-            seed=-1):
+            seed=-1,
+            use_attention_bridge=False):
         self.model = model
         self.src_lang = src_lang
         self.tgt_lang = tgt_lang
@@ -178,6 +179,7 @@ class Translator(object):
         self.use_filter_pred = False
         self._filter_pred = None
 
+        self.use_attention_bridge=use_attention_bridge
         # for debugging
         self.beam_trace = self.dump_beam != ""
         self.beam_accum = None
@@ -221,6 +223,7 @@ class Translator(object):
 
         src_reader = inputters.str2reader[opt.data_type].from_opt(opt)
         tgt_reader = inputters.str2reader["text"].from_opt(opt)
+
         return cls(
             model,
             opt.src_lang,
@@ -252,7 +255,8 @@ class Translator(object):
             out_file=out_file,
             report_score=report_score,
             logger=logger,
-            seed=opt.seed)
+            seed=opt.seed,
+            use_attention_bridge=opt.use_attention_bridge)
 
     def _log(self, msg):
         if self.logger:
@@ -627,6 +631,11 @@ class Translator(object):
 
         # (1) Run the encoder on the src.
         src, enc_states, memory_bank, src_lengths = self._run_encoder(batch)
+        
+        if self.use_attention_bridge:
+            alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
+
+
         self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
                 src, memory_bank, enc_states)
 
