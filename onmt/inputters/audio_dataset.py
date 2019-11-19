@@ -8,10 +8,12 @@ from torchtext.data import Field
 from onmt.inputters.datareader_base import DataReaderBase
 
 # imports of datatype-specific dependencies
+
 try:
     import torchaudio
     import librosa
     import numpy as np
+    import math
 except ImportError:
     torchaudio, librosa, np = None, None, None
 
@@ -36,7 +38,7 @@ class AudioDataReader(DataReaderBase):
     """
 
     def __init__(self, sample_rate=0, window_size=0, window_stride=0,
-                 window=None, normalize_audio=True, truncate=None, n_mels=80):
+                 window=None, normalize_audio=True, truncate=None, n_mels=80, n_stacked_mels=1):
         self._check_deps()
         self.sample_rate = sample_rate
         self.window_size = window_size
@@ -45,11 +47,12 @@ class AudioDataReader(DataReaderBase):
         self.normalize_audio = normalize_audio
         self.truncate = truncate
         self.n_mels = n_mels
+        self.n_stacked_mels = n_stacked_mels
 
     @classmethod
     def from_opt(cls, opt):
         return cls(sample_rate=opt.sample_rate, window_size=opt.window_size,
-                   window_stride=opt.window_stride, window=opt.window, n_mels=opt.n_mels)
+                   window_stride=opt.window_stride, window=opt.window, n_mels=opt.n_mels, n_stacked_mels=opt.n_stacked_mels)
 
     @classmethod
     def _check_deps(cls):
@@ -82,6 +85,7 @@ class AudioDataReader(DataReaderBase):
         win_length = n_fft
         hop_length = int(self.sample_rate * self.window_stride)
         # Mel-scale fbanks
+
         mel_fbanks = librosa.feature.melspectrogram(sound, n_fft=n_fft, hop_length=hop_length,
                         win_length=win_length, window=self.window, n_mels = self.n_mels)
         mel_fbanks = torch.FloatTensor(mel_fbanks)
@@ -90,6 +94,18 @@ class AudioDataReader(DataReaderBase):
             std = mel_fbanks.std()
             mel_fbanks.add_(-mean)
             mel_fbanks.div_(std)
+
+        if self.n_stacked_mels > 1:
+            full_stacked_feats = math.floor(mel_fbanks.shape[1]/self.n_stacked_mels)
+            stacked_mel_fbanks = []
+            for i in range(full_stacked_feats):
+                stacked_mel_fbanks.append( mel_fbanks.t()[self.n_stacked_mels*(i):self.n_stacked_mels*(i)+self.n_stacked_mels].flatten() )
+                    
+            if (full_stacked_feats % self.n_stacked_mels > 0):
+                stacked_mel_fbanks.append( mel_fbanks.t()[-self.n_stacked_mels:].flatten() )
+
+            mel_fbanks = torch.stack(stacked_mel_fbanks).t()
+
         return mel_fbanks
 
     def read(self, data, side, src_dir=None):

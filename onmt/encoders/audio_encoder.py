@@ -29,7 +29,7 @@ class AudioEncoder(EncoderBase):
 
     def __init__(self, rnn_type, enc_layers, dec_layers, brnn,
                  enc_rnn_size, dec_rnn_size, enc_pooling, dropout,
-                 sample_rate, window_size, n_mels):
+                 sample_rate, window_size, enc_input_size):
         super(AudioEncoder, self).__init__()
         self.enc_layers = enc_layers
         self.rnn_type = rnn_type
@@ -43,7 +43,7 @@ class AudioEncoder(EncoderBase):
         dec_rnn_size_real = dec_rnn_size // num_directions
         self.dec_rnn_size_real = dec_rnn_size_real
         self.dec_rnn_size = dec_rnn_size
-        input_size = n_mels
+        input_size = enc_input_size
         enc_pooling = enc_pooling.split(',')
         assert len(enc_pooling) == enc_layers or len(enc_pooling) == 1
         if len(enc_pooling) == 1:
@@ -97,7 +97,7 @@ class AudioEncoder(EncoderBase):
             opt.dropout,
             opt.sample_rate,
             opt.window_size,
-            opt.n_mels)
+            opt.n_mels*opt.n_stacked_mels)
 
     def forward(self, src, lengths=None):
         """See :func:`onmt.encoders.encoder.EncoderBase.forward()`"""
@@ -107,6 +107,7 @@ class AudioEncoder(EncoderBase):
         orig_lengths = lengths
         lengths = lengths.view(-1).tolist()
 
+        assert nfft == self.rnn_0.input_size, " \n\t Verify options -n_mels [default=80] and -n_stacked_mels [default=1]. \n\t Must have the same value as specified during preprocessing. \n\t The AudioEncoder takes inputs of size n_mels*n_stacked_mels"
         for l in range(self.enc_layers):
             rnn = getattr(self, 'rnn_%d' % l)
             pool = getattr(self, 'pool_%d' % l)

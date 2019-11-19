@@ -296,8 +296,11 @@ def preprocess_opts(parser):
     group.add('--window', '-window', default='hamming',
               help="Window type for spectrogram generation.")
     group.add('--n_mels', '-n_mels', type=int, default=80,
-            help="Number Mel-scale filterbanks to extract")
-
+            help="Number Mel-scale filterbanks to extract"
+                 "The AudioEncoder will have as input n_mels*n_stacked_mels")
+    group.add('--n_stacked_mels', '-n_stacked_mels', type=int, default=1,
+            help="Number Mel-scale filterbanks to stack"
+                 "The AudioEncoder will have as input n_mels*n_stacked_mels")
     # Option most relevant to image input
     group.add('--image_channel_size', '-image_channel_size',
               type=int, default=3,
@@ -545,8 +548,11 @@ def train_opts(parser):
     group.add('--window_size', '-window_size', type=float, default=.02,
               help="Window size for spectrogram in seconds.")
     group.add('--n_mels', '-n_mels', type=int, default=80,
-            help="Number Mel-scale filterbanks to extract")
-
+            help="Number Mel-scale filterbanks extracted during prerpocessing"
+                 "The AudioEncoder will have as input n_mels*n_stacked_mels")
+    group.add('--n_stacked_mels', '-n_stacked_mels', type=int, default=1,
+            help="Number Mel-scale filterbanks stacked during preprocessing"
+                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
     # Option most relevant to image input
     group.add('--image_channel_size', '-image_channel_size',
               type=int, default=3, choices=[3, 1],
@@ -723,7 +729,12 @@ def translate_opts(parser):
               help='Window stride for spectrogram in seconds')
     group.add('--window', '-window', default='hamming',
               help='Window type for spectrogram generation')
-
+    group.add('--n_mels', '-n_mels', type=int, default=80,
+            help="Number Mel-scale filterbanks extracted during prerpocessing"
+                 "The AudioEncoder will have as input n_mels*n_stacked_mels")
+    group.add('--n_stacked_mels', '-n_stacked_mels', type=int, default=1,
+            help="Number Mel-scale filterbanks stacked during preprocessing"
+                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
     # Option most relevant to image input
     group.add('--image_channel_size', '-image_channel_size',
               type=int, default=3, choices=[3, 1],
@@ -744,8 +755,7 @@ def translate_multimodel(parser):
     group.add('--tgt_lang', '-tgt_lang', required=True,
             help="The 2-character source language code")
 
-    group.add('--n_mels', '-n_mels', type=int, default=80,
-            help="Number Mel-scale filterbanks to extract")
+
 # Copyright 2016 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
