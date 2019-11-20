@@ -59,6 +59,19 @@ class AudioDataReader(DataReaderBase):
         if any([torchaudio is None, librosa is None, np is None]):
             cls._raise_missing_dep(
                 "torchaudio", "librosa", "numpy")
+    
+
+    def stack_mel_filters(mel_fbanks,n_mels,n_stacked_mels):
+        full_stacked_feats = math.floor(mel_fbanks.shape[1]/n_stacked_mels)
+        stacked_mel_fbanks = []
+        for i in range(full_stacked_feats):
+            stacked_mel_fbanks.append( mel_fbanks.t()[n_stacked_mels*(i):n_stacked_mels*(i)+n_stacked_mels].flatten() )
+                
+        if (full_stacked_feats % n_stacked_mels > 0):
+            stacked_mel_fbanks.append( mel_fbanks.t()[-n_stacked_mels:].flatten() )
+
+        return torch.stack(stacked_mel_fbanks).t()
+ 
 
     def extract_features(self, audio_path):
         # torchaudio loading options recently changed. It's probably
@@ -94,17 +107,8 @@ class AudioDataReader(DataReaderBase):
             std = mel_fbanks.std()
             mel_fbanks.add_(-mean)
             mel_fbanks.div_(std)
-
         if self.n_stacked_mels > 1:
-            full_stacked_feats = math.floor(mel_fbanks.shape[1]/self.n_stacked_mels)
-            stacked_mel_fbanks = []
-            for i in range(full_stacked_feats):
-                stacked_mel_fbanks.append( mel_fbanks.t()[self.n_stacked_mels*(i):self.n_stacked_mels*(i)+self.n_stacked_mels].flatten() )
-                    
-            if (full_stacked_feats % self.n_stacked_mels > 0):
-                stacked_mel_fbanks.append( mel_fbanks.t()[-self.n_stacked_mels:].flatten() )
-
-            mel_fbanks = torch.stack(stacked_mel_fbanks).t()
+            mel_fbanks = stack_mel_filters(mel_fbanks, self.n_mels, self.n_stacked_mels)
 
         return mel_fbanks
 

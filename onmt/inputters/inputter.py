@@ -15,7 +15,9 @@ from torchtext.data.utils import RandomShuffler
 
 from onmt.inputters.text_dataset import text_fields, TextMultiField
 from onmt.inputters.image_dataset import image_fields
-from onmt.inputters.audio_dataset import audio_fields
+from onmt.inputters.audio_dataset import *
+
+
 from onmt.utils.logging import logger
 # backwards compatibility
 from onmt.inputters.text_dataset import _feature_tokenize  # noqa: F401
@@ -665,7 +667,7 @@ class DatasetLazyIter(object):
 
     def __init__(self, dataset_paths, fields, batch_size, batch_size_fn,
                  batch_size_multiple, device, is_train, pool_factor,
-                 repeat=True, num_batches_multiple=1, yield_raw_example=False):
+                 repeat=True, num_batches_multiple=1, yield_raw_example=False, n_mels=80, n_stacked_mels=1):
         self._paths = dataset_paths
         self.fields = fields
         self.batch_size = batch_size
@@ -677,12 +679,19 @@ class DatasetLazyIter(object):
         self.num_batches_multiple = num_batches_multiple
         self.yield_raw_example = yield_raw_example
         self.pool_factor = pool_factor
-
+        self.n_stacked_mels = n_stacked_mels
+        self.n_mels = n_mels
+   
     def _iter_dataset(self, path):
         cur_dataset = torch.load(path)
         logger.info('Loading dataset from %s, number of examples: %d' %
                     (path, len(cur_dataset)))
         cur_dataset.fields = self.fields
+        # Stack mel_fbanks for audio files, with n_stacked_mels option
+        if isinstance(self.fields['src'],AudioSeqField) and self.n_stacked_mels>1:
+            for i,example in enumerate(cur_dataset.examples):
+                cur_dataset.examples[i].src = AudioDataReader.stack_mel_filters(example.src,self.n_mels,self.n_stacked_mels)
+
         cur_iter = OrderedIterator(
             dataset=cur_dataset,
             batch_size=self.batch_size,
@@ -756,6 +765,7 @@ def build_dataset_iter(corpus_type, fields, data_path, opt, is_train=True, multi
     to iterate over. We implement simple ordered iterator strategy here,
     but more sophisticated strategy like curriculum learning is ok too.
     """
+
     dataset_paths = list(sorted(
         glob.glob(data_path + '.' + corpus_type + '*.pt')))
     if not dataset_paths:
@@ -771,7 +781,7 @@ def build_dataset_iter(corpus_type, fields, data_path, opt, is_train=True, multi
         batch_size_multiple = 8 if opt.model_dtype == "fp16" else 1
 
     device = "cuda" if opt.gpu_ranks else "cpu"
-
+    
     return DatasetLazyIter(
         dataset_paths,
         fields,
@@ -783,4 +793,5 @@ def build_dataset_iter(corpus_type, fields, data_path, opt, is_train=True, multi
         opt.pool_factor,
         repeat=not opt.single_pass,
         num_batches_multiple=max(opt.accum_count) * opt.world_size,
-        yield_raw_example=multi)
+        yield_raw_example=multi,
+        n_mels=opt.n_mels, n_stacked_mels=opt.n_stacked_mels)

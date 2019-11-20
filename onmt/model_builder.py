@@ -92,8 +92,8 @@ def load_test_multitask_model(opt, model_path=None):
         )
     else:
         fields = vocab
-
-    if opt.data_type == 'audio' and not (type(checkpoint.get('vocab')['src']) is onmt.inputters.audio_dataset.AudioSeqField):
+    
+    if opt.data_type == 'audio' and not (isinstance(checkpoint.get('vocab')[src_tgtpair]['src'], AudioSeqField)):
         vocab_path = "/home/vazquezj/Documents/iwslt2019/_ready_to_train/onmt_ready/ENaudio_DEtext/data"
         fields = torch.load(vocab_path + '.vocab.pt')
 
