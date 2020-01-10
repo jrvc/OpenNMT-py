@@ -8,6 +8,7 @@ import torch.nn as nn
 from torch.nn.init import xavier_uniform_
 
 import onmt.inputters as inputters
+from   onmt.inputters.audio_dataset import AudioSeqField
 import onmt.modules
 from onmt.encoders import str2enc
 

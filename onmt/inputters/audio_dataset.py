@@ -18,6 +18,17 @@ except ImportError:
     torchaudio, librosa, np = None, None, None
 
 
+def stack_mel_filters(mel_fbanks,n_mels,n_stacked_mels):
+    full_stacked_feats = math.floor(mel_fbanks.shape[1]/n_stacked_mels)
+    stacked_mel_fbanks = []
+    for i in range(full_stacked_feats):
+        stacked_mel_fbanks.append( mel_fbanks.t()[n_stacked_mels*(i):n_stacked_mels*(i)+n_stacked_mels].flatten() )
+            
+    if (full_stacked_feats % n_stacked_mels > 0):
+        stacked_mel_fbanks.append( mel_fbanks.t()[-n_stacked_mels:].flatten() )
+
+    return torch.stack(stacked_mel_fbanks).t()
+
 class AudioDataReader(DataReaderBase):
     """Read audio data from disk.
 
@@ -60,18 +71,6 @@ class AudioDataReader(DataReaderBase):
             cls._raise_missing_dep(
                 "torchaudio", "librosa", "numpy")
     
-
-    def stack_mel_filters(mel_fbanks,n_mels,n_stacked_mels):
-        full_stacked_feats = math.floor(mel_fbanks.shape[1]/n_stacked_mels)
-        stacked_mel_fbanks = []
-        for i in range(full_stacked_feats):
-            stacked_mel_fbanks.append( mel_fbanks.t()[n_stacked_mels*(i):n_stacked_mels*(i)+n_stacked_mels].flatten() )
-                
-        if (full_stacked_feats % n_stacked_mels > 0):
-            stacked_mel_fbanks.append( mel_fbanks.t()[-n_stacked_mels:].flatten() )
-
-        return torch.stack(stacked_mel_fbanks).t()
- 
 
     def extract_features(self, audio_path):
         # torchaudio loading options recently changed. It's probably
