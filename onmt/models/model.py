@@ -2,6 +2,7 @@
 import torch.nn as nn
 
 from onmt.attention_bridge import AttentionBridge
+import onmt
 
 class MultiTaskModel(nn.Module):
     """
@@ -27,13 +28,21 @@ class MultiTaskModel(nn.Module):
         decoder_ids = {lang_code: idx
                        for lang_code, idx
                        in zip(decoders.keys(), range(len(list(decoders.keys()))))}
+        dectypes = [model_opt.decoder_type]*len(list(decoders.keys())) if isinstance(model_opt.decoder_type,str) else model_opt.decoder_type
+        decoder_types = {lang_code: dectype 
+                        for lang_code, dectype
+                        in zip(decoders.keys(), dectypes) }
+        self.decoder_types = decoder_types  
+        
         decoders = nn.ModuleList(decoders.values())
         self.decoder_ids = decoder_ids
         self.decoders = decoders
 
         self.use_attention_bridge = model_opt.use_attention_bridge
+        self.init_decoder = model_opt.init_decoder
         self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads, model_opt)
-
+        
+        
         # generator ids is linked with decoder_ids
         # self.generators = None
 
@@ -65,13 +74,19 @@ class MultiTaskModel(nn.Module):
 
         #TEST
         alphas = None
-
+        
         # Implement attention bridge/compound attention
         if self.use_attention_bridge:
             alphas, memory_bank = self.attention_bridge(memory_bank, src)
 
         enc_state = \
             decoder.init_state(src, memory_bank, enc_final)
+
+        # for transformer decoders, init state with correct size 
+        # (only used for masking, not needed with attBridge)
+        if self.use_attention_bridge and self.decoder_types[tgt_task]=='transformer':
+            enc_state = \
+                decoder.init_state(memory_bank, memory_bank, enc_final)
 
         decoder_outputs, attns = \
             decoder(tgt, memory_bank, memory_lengths=lengths)
