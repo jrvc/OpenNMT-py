@@ -1,3 +1,35 @@
+# Hands-on example
+
+The following scripts require subword-nmt and sacrebleu.
+```bash
+pip install subword-nmt
+pip install sacrebleu
+
+
+git clone --branch att-brg https://github.com/Helsinki-NLP/OpenNMT-py.git
+```
+
+Example on how to train a simple model with 2 encoder and 1 decoder.   
+First, prepare the parallel data for training, validation, and testing.
+```bash
+cd OpenNMT-py/data 
+source ./prep-data.sh
+cd ..
+```
+   
+Second, let's train a model using French and German as input, and Czech as target language.
+
+```bash
+bash train_example.sh
+```
+It runs on cpu, and it will train a 1-layer model for 10000 training steps   
+   
+After the training is completed, we can evaluate the model on a reference test.
+```bash
+bash test_example.sh
+```
+
+
 # OpenNMT-py: Open-Source Neural Machine Translation
 
 [![Build Status](https://travis-ci.org/OpenNMT/OpenNMT-py.svg?branch=master)](https://travis-ci.org/OpenNMT/OpenNMT-py)
