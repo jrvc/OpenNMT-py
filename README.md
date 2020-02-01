@@ -14,7 +14,6 @@ First, prepare the parallel data for training, validation, and testing.
 ```bash
 cd OpenNMT-py/data 
 source ./prep-data.sh
-cd ..
 ```
    
 Second, let's train a model using French and German as input, and Czech as target language.
