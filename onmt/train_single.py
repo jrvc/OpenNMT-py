@@ -128,7 +128,7 @@ def main(opt, device_id):
         # (in the future this will be done in a smarter way)
         if old_style_vocab(vocab):
             fields = load_old_vocab(
-                vocab, opt.model_type, dynamic_dict=opt.copy_attn)
+                vocab, opt.model_type[0], dynamic_dict=opt.copy_attn)
         else:
             fields = vocab
 
