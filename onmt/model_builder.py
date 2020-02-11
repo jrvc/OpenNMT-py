@@ -302,7 +302,7 @@ def build_base_multitask_model(model_opt, fields, gpu, encoders, decoders, gener
         the NMTModel.
     """
     for model_type in model_opt.model_type:
-        assert model_type in ["text", "img", "audio"], \
+        assert model_type in ["text", "img", "audio", "audiotrf"], \
                 ("Unsupported model type %s" % (model_opt.model_type))
 
     device = torch.device("cuda" if gpu else "cpu")

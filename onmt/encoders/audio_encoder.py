@@ -7,6 +7,7 @@ from torch.nn.utils.rnn import pack_padded_sequence as pack
 from torch.nn.utils.rnn import pad_packed_sequence as unpack
 
 from onmt.utils.rnn_factory import rnn_factory
+from onmt.utils.cnn_factory import shape_transform, StackedCNN
 from onmt.encoders.encoder import EncoderBase
 
 
@@ -141,6 +142,146 @@ class AudioEncoder(EncoderBase):
         else:
             encoder_final = state
         return encoder_final, memory_bank, orig_lengths.new_tensor(lengths)
+
+    def update_dropout(self, dropout):
+        self.dropout.p = dropout
+        for i in range(self.enc_layers - 1):
+            getattr(self, 'rnn_%d' % i).dropout = dropout
+
+
+
+
+
+from onmt.modules import MultiHeadedAttention
+from onmt.encoders.transformer import TransformerEncoderLayer
+
+class AudioEncoderTrf(EncoderBase):
+    """A 2xCNN -> LxTrf encoder for audio input.
+
+    Args:
+        enc_layers (int): Number of encoder layers.
+        hidden_size (int): Size of hidden states of the rnn.
+        enc_pooling (str): A comma separated list either of length 1
+            or of length ``enc_layers`` specifying the pooling amount.
+        dropout (float): dropout probablity.
+        window_size (int): input spec
+    """
+    def __init__(self, enc_layers, hidden_size, 
+                 dropout, cnn_kernel_width, 
+                 enc_input_size, heads, transformer_ff, max_relative_positions):
+        super(AudioEncoderTrf, self).__init__()
+        
+        # cnn part of the encoder:
+        self.enc_layers = enc_layers
+        self.input_size = enc_input_size
+        self.cnn_kernel_width = cnn_kernel_width
+        self.cnn = StackedCNN(num_layers=2, input_size=hidden_size,
+                              cnn_kernel_width=cnn_kernel_width, dropout=dropout)
+        
+        self.linear = nn.Linear(self.input_size, hidden_size)
+
+        if dropout > 0:
+            self.dropout = nn.Dropout(dropout)
+        else:
+            self.dropout = None
+        
+        #self.batchnorm_0 = nn.BatchNorm1d(enc_rnn_size, affine=True) # is this needed?
+        
+        # trf part of the encoder:
+        self.transformer = nn.ModuleList(
+            [TransformerEncoderLayer(
+                d_model=hidden_size, heads=heads, d_ff=transformer_ff, dropout=dropout,
+                max_relative_positions=max_relative_positions)
+             for i in range(enc_layers)])
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=1e-6)
+
+
+    @classmethod
+    def from_opt(cls, opt, embeddings=None):
+        """Alternate constructor."""
+        if embeddings is not None:
+            raise ValueError("Cannot use embeddings with AudioEncoderTrf.")
+        return cls(
+            opt.enc_layers,
+            opt.enc_rnn_size,
+            opt.dropout[0] if type(opt.dropout) is list else opt.dropout,
+            opt.cnn_kernel_width,
+            opt.n_mels*opt.n_stacked_mels,
+            opt.heads,
+            opt.transformer_ff,
+            opt.max_relative_positions)
+    
+
+
+    def forward(self, src, lengths=None):
+        """See :func:`onmt.encoders.encoder.EncoderBase.forward()`"""
+        batch_size, _, input_dim, src_len = src.size() #[bsz,1,input_hsz,src_len]
+        orig_lengths = lengths
+        lengths = lengths.view(-1).tolist() #[bsz,input_hsz,src_len,1]
+        
+        # correct shape for FWDnn                                   
+        src = src.transpose(2,3).transpose(0,1).contiguous().view(batch_size, src_len, input_dim) #[bsz, src_len, input_hsz]
+        src_reshape = src.view(src.size(0) * src.size(1), -1)    #[(bsz*src_len), emb_dim]
+        # FWD
+        src_remap = self.linear(src_reshape)                    #[(bsz*src_len), hdim]
+        # correct shape for StackedCNN
+        src_remap = src_remap.view(src.size(0), src.size(1), -1) #[bsz, src_len, hdim]
+        src = shape_transform(src_remap)                         #[bsz,hdim,src_len,1]
+         
+        # StackedCNN
+        cnn_out = self.cnn(src)      #[bsz,input_hsz,src_len,1]
+        # reshape for trf layers:
+        cnn_out = cnn_out.squeeze(3).transpose(1,2).contiguous() # [bsz, src_len, emb_dim]
+        # TRF                                                          
+        for layer in self.transformer:
+            out = layer(cnn_out, mask=None)
+        out = self.layer_norm(out)
+        # var to init decoder state
+        state = out.new_full(out.shape, 0) # THIS IS A DUMMY - TRF DECODERS DON'T NEED INITIALIZATION
+        # return enc_final, memory_bank, lengths
+        return state, out.transpose(0, 1).contiguous(), orig_lengths.new_tensor(lengths)
+
+        
+
+    # CNN
+    def cnnforward(self, input, lengths=None, hidden=None):
+        """See :class:`onmt.modules.EncoderBase.forward()`"""
+        import ipdb; ipdb.set_trace()
+        self._check_args(input, lengths, hidden)
+
+        emb = self.embeddings(input)                             #[src_len, bsz, emb_dim]
+        emb = emb.transpose(0, 1).contiguous()                   #[bsz, src_len, emb_dim]
+        emb_reshape = emb.view(emb.size(0) * emb.size(1), -1)    #[(bsz*src_len), emb_dim]
+        emb_remap = self.linear(emb_reshape)                     #[(bsz*src_len), emb_dim]
+        emb_remap = emb_remap.view(emb.size(0), emb.size(1), -1) #[bsz, src_len, emb_dim]
+        emb_remap = shape_transform(emb_remap)                   #[bsz, emb_dim, src_len, 1]
+        out = self.cnn(emb_remap)                                #[bsz, emb_dim, src_len, 1]
+
+        return emb_remap.squeeze(3).transpose(0, 1).contiguous(), \
+            out.squeeze(3).transpose(0, 1).contiguous(), lengths    #[emb_dim,bsz,src_len],[emb_dim,bsz,src_len], [bsz]
+
+    # TRF:
+    def trfforward(self, src, lengths=None):
+        """See :func:`EncoderBase.forward()`"""
+        import ipdb; ipdb.set_trace()
+        self._check_args(src, lengths)
+
+        emb = self.embeddings(src) # embeddings_layer: [vocabsz] -> [rnn_size]
+                                   # dim(emb) = [src_len, bsz, emb_dim]
+
+        out = emb.transpose(0, 1).contiguous() # [bsz, src_len, emb_dim]
+        words = src[:, :, 0].transpose(0, 1)
+        w_batch, w_len = words.size()
+        padding_idx = self.embeddings.word_padding_idx
+        mask = words.data.eq(padding_idx).unsqueeze(1)  # [B, 1, T]
+        # Run the forward pass of every layer of the tranformer.
+        for layer in self.transformer:
+            out = layer(out, mask)
+        out = self.layer_norm(out)
+
+        return emb, out.transpose(0, 1).contiguous(), lengths
+
+
 
     def update_dropout(self, dropout):
         self.dropout.p = dropout
