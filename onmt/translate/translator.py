@@ -23,9 +23,12 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
     if out_file is None:
         out_file = codecs.open(opt.output, 'w+', 'utf-8')
 
-    load_test_model = onmt.decoders.ensemble.load_test_model \
-        if len(opt.models) > 1 else onmt.model_builder.load_test_model
-    fields, model, model_opt = load_test_model(opt)
+    #load_test_model = onmt.decoders.ensemble.load_test_model \
+    #    if len(opt.models) > 1 else onmt.model_builder.load_test_model
+    #fields, model, model_opt = load_test_model(opt)
+
+    # multitask model
+    fields, model, model_opt = onmt.model_builder.load_test_multitask_model(opt)
 
     scorer = onmt.translate.GNMTGlobalScorer.from_opt(opt)
 
@@ -86,6 +89,8 @@ class Translator(object):
     def __init__(
             self,
             model,
+            src_lang,
+            tgt_lang,
             fields,
             src_reader,
             tgt_reader,
@@ -113,8 +118,11 @@ class Translator(object):
             out_file=None,
             report_score=True,
             logger=None,
-            seed=-1):
+            seed=-1,
+            use_attention_bridge=False):
         self.model = model
+        self.src_lang = src_lang
+        self.tgt_lang = tgt_lang
         self.fields = fields
         tgt_field = dict(self.fields)["tgt"].base_field
         self._tgt_vocab = tgt_field.vocab
@@ -171,6 +179,7 @@ class Translator(object):
         self.use_filter_pred = False
         self._filter_pred = None
 
+        self.use_attention_bridge=use_attention_bridge
         # for debugging
         self.beam_trace = self.dump_beam != ""
         self.beam_accum = None
@@ -193,7 +202,8 @@ class Translator(object):
             global_scorer=None,
             out_file=None,
             report_score=True,
-            logger=None):
+            logger=None,
+            use_attention_bridge=False):
         """Alternate constructor.
 
         Args:
@@ -213,8 +223,11 @@ class Translator(object):
 
         src_reader = inputters.str2reader[opt.data_type].from_opt(opt)
         tgt_reader = inputters.str2reader["text"].from_opt(opt)
+
         return cls(
             model,
+            opt.src_lang,
+            opt.tgt_lang,
             fields,
             src_reader,
             tgt_reader,
@@ -242,7 +255,8 @@ class Translator(object):
             out_file=out_file,
             report_score=report_score,
             logger=logger,
-            seed=opt.seed)
+            seed=opt.seed,
+            use_attention_bridge=opt.use_attention_bridge)
 
     def _log(self, msg):
         if self.logger:
@@ -256,7 +270,8 @@ class Translator(object):
             gs = self._score_target(
                 batch, memory_bank, src_lengths, src_vocabs,
                 batch.src_map if use_src_map else None)
-            self.model.decoder.init_state(src, memory_bank, enc_states)
+            self.model.decoders[self.model.decoder_ids[self.tgt_lang]].\
+                    init_state(src, memory_bank, enc_states)
         else:
             gs = [0] * batch_size
         return gs
@@ -324,7 +339,6 @@ class Translator(object):
         all_predictions = []
 
         start_time = time.time()
-
         for batch in data_iter:
             batch_data = self.translate_batch(
                 batch, data.src_vocabs, attn_debug
@@ -526,8 +540,10 @@ class Translator(object):
         src, src_lengths = batch.src if isinstance(batch.src, tuple) \
                            else (batch.src, None)
 
-        enc_states, memory_bank, src_lengths = self.model.encoder(
-            src, src_lengths)
+        #enc_states, memory_bank, src_lengths = self.model.encoder(
+        #    src, src_lengths)
+        enc_states, memory_bank, src_lengths = self.model.encoders[
+                self.model.encoder_ids[self.src_lang]](src, src_lengths)
         if src_lengths is None:
             assert not isinstance(memory_bank, tuple), \
                 'Ensemble decoding only supported for text data'
@@ -557,7 +573,8 @@ class Translator(object):
         # and [src_len, batch, hidden] as memory_bank
         # in case of inference tgt_len = 1, batch = beam times batch_size
         # in case of Gold Scoring tgt_len = actual length, batch = 1 batch
-        dec_out, dec_attn = self.model.decoder(
+        decoder = self.model.decoders[self.model.decoder_ids[self.tgt_lang]]
+        dec_out, dec_attn = decoder(
             decoder_in, memory_bank, memory_lengths=memory_lengths, step=step
         )
 
@@ -567,7 +584,8 @@ class Translator(object):
                 attn = dec_attn["std"]
             else:
                 attn = None
-            log_probs = self.model.generator(dec_out.squeeze(0))
+            log_probs = self.model.generators\
+                    [self.model.decoder_ids[self.tgt_lang]](dec_out.squeeze(0))
             # returns [(batch_size x beam_size) , vocab ] when 1 step
             # or [ tgt_len, batch_size, vocab ] when full sentence
         else:
@@ -613,7 +631,15 @@ class Translator(object):
 
         # (1) Run the encoder on the src.
         src, enc_states, memory_bank, src_lengths = self._run_encoder(batch)
-        self.model.decoder.init_state(src, memory_bank, enc_states)
+        
+        if self.use_attention_bridge:
+            alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
+
+
+        self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
+                src, memory_bank, enc_states)
+
+        #self.model.decoder.init_state(src, memory_bank, enc_states)
 
         results = {
             "predictions": None,
@@ -628,7 +654,7 @@ class Translator(object):
         # We use batch_size x beam_size
         src_map = (tile(batch.src_map, beam_size, dim=1)
                    if use_src_map else None)
-        self.model.decoder.map_state(
+        self.model.decoders[self.model.decoder_ids[self.tgt_lang]].map_state(
             lambda state, dim: tile(state, beam_size, dim=dim))
 
         if isinstance(memory_bank, tuple):
@@ -692,8 +718,8 @@ class Translator(object):
 
                 if src_map is not None:
                     src_map = src_map.index_select(1, select_indices)
-
-            self.model.decoder.map_state(
+            decoder = self.model.decoders[self.model.decoder_ids[self.tgt_lang]]
+            decoder.map_state(
                 lambda state, dim: state.index_select(dim, select_indices))
 
         results["scores"] = beam.scores
@@ -806,7 +832,7 @@ class Translator(object):
             memory_lengths=src_lengths, src_map=src_map)
 
         log_probs[:, :, self._tgt_pad_idx] = 0
-        gold = tgt_in
+        gold = tgt[1:]
         gold_scores = log_probs.gather(2, gold)
         gold_scores = gold_scores.sum(dim=0).view(-1)
 
