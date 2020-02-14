@@ -104,7 +104,6 @@ def main(opt, device_id):
 
     # we share the word embedding space when source lang and target lang are the same
     mapLang2Emb = {}
-
     #for (src_tgt_lang), data_path in zip(opt.src_tgt, opt.data):
     for index in range(len(opt.src_tgt)):
         src_tgt_lang = opt.src_tgt[index]
@@ -117,6 +116,9 @@ def main(opt, device_id):
         local_enc_dec_opts.dec_layers = update_to_local_attr(model_opt.dec_layers, index)
         local_enc_dec_opts.rnn_type   = update_to_local_attr(model_opt.rnn_type, index)
         local_enc_dec_opts.encoder_type = update_to_local_attr(model_opt.encoder_type, index)
+        local_enc_dec_opts.batch_size = update_to_local_attr(model_opt.batch_size, index)
+        local_enc_dec_opts.batch_type = update_to_local_attr(model_opt.batch_type, index)
+        local_enc_dec_opts.normalization = update_to_local_attr(model_opt.normalization, index)
         #local_enc_dec_opts.dec_rnn_size = model_opt.dec_rnn_size[index]
 
 
@@ -181,16 +183,17 @@ def main(opt, device_id):
 
         generators[tgt_lang] = generator
 
+        
         # add this dataset iterator to the training iterators
         train_iters[(src_lang, tgt_lang)] = build_dataset_iter_fct('train',
                                                                 fields,
                                                                 data_path,
-                                                                opt)
+                                                                local_enc_dec_opts)
         # add this dataset iterator to the validation iterators
         valid_iters[(src_lang, tgt_lang)] = build_dataset_iter_fct('valid',
                                                                 fields,
                                                                 data_path,
-                                                                opt,
+                                                                local_enc_dec_opts,
                                                                 is_train=False)
 
         Fields_dict[src_tgt_lang] = fields

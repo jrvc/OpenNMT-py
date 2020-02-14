@@ -226,15 +226,19 @@ class AudioEncoderTrf(EncoderBase):
         src_remap = self.linear(src_reshape)                    #[(bsz*src_len), hdim]
         # correct shape for StackedCNN
         src_remap = src_remap.view(src.size(0), src.size(1), -1) #[bsz, src_len, hdim]
-        src = shape_transform(src_remap)                         #[bsz,hdim,src_len,1]
-         
-        # StackedCNN
-        cnn_out = self.cnn(src)      #[bsz,input_hsz,src_len,1]
+        
+        # ------ NEEDED FOR THE cnn: ----
+        ##src = shape_transform(src_remap)                         #[bsz,hdim,src_len,1]
+        ## StackedCNN
+        ##cnn_out = self.cnn(src)      #[bsz,input_hsz,src_len,1]
         # reshape for trf layers:
-        cnn_out = cnn_out.squeeze(3).transpose(1,2).contiguous() # [bsz, src_len, emb_dim]
+        ##out = cnn_out.squeeze(3).transpose(1,2).contiguous() # [bsz, src_len, hdim]
+        ## ------------------
+        
+        out = src_remap
         # TRF                                                          
         for layer in self.transformer:
-            out = layer(cnn_out, mask=None)
+            out = layer(out, mask=None)
         out = self.layer_norm(out)
         # var to init decoder state
         state = out.new_full(out.shape, 0) # THIS IS A DUMMY - TRF DECODERS DON'T NEED INITIALIZATION
