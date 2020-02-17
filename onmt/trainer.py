@@ -300,7 +300,7 @@ class Trainer(object):
                 report_stats = self._maybe_report_training(
                     step, train_steps,
                     self.optim.learning_rate(),
-                    report_stats)
+                    report_stats, (src_lang,tgt_lang) )
 
 
                 if valid_iters is not None and step % valid_steps == 0:
@@ -506,14 +506,14 @@ class Trainer(object):
         return stat
 
     def _maybe_report_training(self, step, num_steps, learning_rate,
-                               report_stats):
+                               report_stats, src_tgt):
         """
         Simple function to report training stats (if report_manager is set)
         see `onmt.utils.ReportManagerBase.report_training` for doc
         """
         if self.report_manager is not None:
             return self.report_manager.report_training(
-                step, num_steps, learning_rate, report_stats,
+                step, num_steps, learning_rate, report_stats, src_tgt,
                 multigpu=self.n_gpu > 1)
 
     def _report_step(self, learning_rate, step, train_stats=None,

@@ -394,12 +394,14 @@ def train_opts(parser):
 
     # Optimization options
     group = parser.add_argument_group('Optimization- Type')
-    group.add('--batch_size', '-batch_size', type=int, default=64,
-              help='Maximum batch size for training')
-    group.add('--batch_type', '-batch_type', default='sents',
+    group.add('--batch_size', '-batch_size', nargs='+', type=int, default=64,
+              help='Maximum batch size for training.'
+                   'Specify either a single int or 1 per src-tgt')
+    group.add('--batch_type', '-batch_type', nargs='+', default='sents',
               choices=["sents", "tokens"],
-              help="Batch grouping for batch_size. Standard "
-                   "is sents. Tokens will do dynamic batching")
+              help="Batch grouping for batch_size. Default is sents."
+                   "Tokens will do dynamic batching"
+                   "Specify either a single option or 1 per src-tgt")
     group.add('--pool_factor', '-pool_factor', type=int, default=8192,
               help="""Factor used in data loading and batch creations.
               It will load the equivalent of `pool_factor` batches,
@@ -407,9 +409,10 @@ def train_opts(parser):
               homogeneous batches and reduce padding, and yield
               the produced batches in a shuffled way.
               Inspired by torchtext's pool mechanism.""")
-    group.add('--normalization', '-normalization', default='sents',
+    group.add('--normalization', '-normalization', nargs='+', default='sents',
               choices=["sents", "tokens"],
-              help='Normalization method of the gradient.')
+              help='Normalization method of the gradient.'
+                   "Specify either a single option or 1 per src-tgt")
     group.add('--accum_count', '-accum_count', type=int, nargs='+',
               default=[1],
               help="Accumulate gradient this many times. "
