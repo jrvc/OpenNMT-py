@@ -1,6 +1,8 @@
 from translate import *
 import argparse, onmt
 
+from ipdb import launch_ipdb_on_exception
+
 if __name__ == "__main__":
     parser = ArgumentParser(
         description='translate.py',
@@ -12,4 +14,6 @@ if __name__ == "__main__":
 
     opt = parser.parse_args()
     logger = init_logger(opt.log_file)
+    #with launch_ipdb_on_exception():
+        #main(opt)
     main(opt)
