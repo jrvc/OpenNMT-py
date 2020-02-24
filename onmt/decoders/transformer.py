@@ -127,7 +127,7 @@ class TransformerDecoder(DecoderBase):
 
     def __init__(self, num_layers, d_model, heads, d_ff,
                  copy_attn, self_attn_type, dropout, embeddings,
-                 max_relative_positions):
+                 max_relative_positions, use_attention_bridge):
         super(TransformerDecoder, self).__init__()
 
         self.embeddings = embeddings
@@ -146,6 +146,7 @@ class TransformerDecoder(DecoderBase):
         # just reuses the context attention.
         self._copy = copy_attn
         self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
+        self.use_attention_bridge = use_attention_bridge
 
     @classmethod
     def from_opt(cls, opt, embeddings):
@@ -159,7 +160,8 @@ class TransformerDecoder(DecoderBase):
             opt.self_attn_type,
             opt.dropout[0] if type(opt.dropout) is list else opt.dropout,
             embeddings,
-            opt.max_relative_positions)
+            opt.max_relative_positions,
+            opt.use_attention_bridge)
 
     def init_state(self, src, memory_bank, enc_hidden):
         """Initialize decoder state."""
@@ -200,7 +202,10 @@ class TransformerDecoder(DecoderBase):
         src_memory_bank = memory_bank.transpose(0, 1).contiguous()
 
         pad_idx = self.embeddings.word_padding_idx
-        src_pad_mask = src_words.data.eq(pad_idx).unsqueeze(1)  # [B, 1, T_src]
+        if self.use_attention_bridge:
+          src_pad_mask = None
+        else:
+          src_pad_mask = src_words.data.eq(pad_idx).unsqueeze(1)  # [B, 1, T_src]
         tgt_pad_mask = tgt_words.data.eq(pad_idx).unsqueeze(1)  # [B, 1, T_tgt]
 
         for i, layer in enumerate(self.transformer_layers):
