@@ -215,6 +215,7 @@ class AudioEncoderTrf(EncoderBase):
 
     def forward(self, src, lengths=None):
         """See :func:`onmt.encoders.encoder.EncoderBase.forward()`"""
+        #print('[bsz,1,input_hsz,src_len]=',src.size())
         batch_size, _, input_dim, src_len = src.size() #[bsz,1,input_hsz,src_len]
         orig_lengths = lengths
         lengths = lengths.view(-1).tolist() #[bsz,input_hsz,src_len,1]

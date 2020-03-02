@@ -313,6 +313,7 @@ def build_base_multitask_model(model_opt, fields, gpu, encoders, decoders, gener
     model.src_vocabs = src_vocabs
     model.tgt_vocabs = tgt_vocabs
 
+    model.generators = nn.ModuleList(generators.values())
     # Load the model states from checkpoint or initialize them.
     if checkpoint is not None:
         model.load_state_dict(checkpoint['model'])
@@ -333,9 +334,7 @@ def build_base_multitask_model(model_opt, fields, gpu, encoders, decoders, gener
                 for p in generator.parameters():
                     if p.dim() > 1:
                         xavier_uniform_(p)
-
-    model.generators = nn.ModuleList(generators.values())
-
+ 
     model.to(device)
 
     return model
