@@ -7,7 +7,7 @@ from torch.nn.utils.rnn import pack_padded_sequence as pack
 from torch.nn.utils.rnn import pad_packed_sequence as unpack
 
 from onmt.utils.rnn_factory import rnn_factory
-from onmt.utils.cnn_factory import shape_transform, StackedCNN
+from onmt.utils.cnn_factory import shape_transform, GatedConv
 from onmt.encoders.encoder import EncoderBase
 
 
@@ -166,25 +166,60 @@ class AudioEncoderTrf(EncoderBase):
         dropout (float): dropout probablity.
         window_size (int): input spec
     """
-    def __init__(self, enc_layers, hidden_size, 
-                 dropout, cnn_kernel_width, 
-                 enc_input_size, heads, transformer_ff, max_relative_positions):
+    def __init__(self, enc_layers, hidden_size, dropout, cnn_kernel_width, 
+                 n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions):
         super(AudioEncoderTrf, self).__init__()
         
         # cnn part of the encoder:
         self.enc_layers = enc_layers
-        self.input_size = enc_input_size
+
+        self.input_size = n_mels
+        self.cnn_inchannels = n_stacked_mels
+
+        self.hidden_size = hidden_size
         self.cnn_kernel_width = cnn_kernel_width
-        self.cnn = StackedCNN(num_layers=2, input_size=hidden_size,
-                              cnn_kernel_width=cnn_kernel_width, dropout=dropout)
         
-        self.linear = nn.Linear(self.input_size, hidden_size)
+        self.stride = 2
+        self.numcnnlayers = 2
+        self.cnn_outchannels = 32
+        pad=True 
+        
+        self.cnn = nn.ModuleList()
+        cnn_1 = nn.Conv2d(in_channels=self.cnn_inchannels, 
+                                 out_channels=self.cnn_outchannels, 
+                                 kernel_size=self.cnn_kernel_width,
+                                 stride=self.stride,
+                                 padding=self.cnn_kernel_width // 2 * (pad) )
+        nn.init.xavier_uniform_(cnn_1.weight, gain=(4 * (1 - dropout))**0.5)
+        self.cnn.append(cnn_1)
+        
+        self.pool_1 = nn.MaxPool2d(kernel_size=(self.cnn_kernel_width//3,1), 
+                                   stride=(self.stride,1),
+                                   padding=((cnn_kernel_width // 3) // 2 * (pad), 0) )
+
+        for l in range(self.numcnnlayers-1):
+            this_cnn = nn.Conv2d(in_channels=self.cnn_outchannels, 
+                                 out_channels=self.cnn_outchannels, 
+                                 kernel_size=self.cnn_kernel_width,
+                                 stride=self.stride,
+                                 padding=self.cnn_kernel_width // 2 * (pad) )
+            nn.init.xavier_uniform_(this_cnn.weight, gain=(4 * (1 - dropout))**0.5)
+            self.cnn.append(this_cnn)
+            
+            setattr(self, 'pool_%d' % (l + 2),
+                    nn.MaxPool2d(kernel_size=(self.cnn_kernel_width//3,1), 
+                                 stride=(self.stride,1),
+                                 padding=((cnn_kernel_width // 3) // 2 * (pad), 0))  )
+        
 
         if dropout > 0:
             self.dropout = nn.Dropout(dropout)
         else:
             self.dropout = None
         
+        hszlin = self.input_size//(self.stride*self.numcnnlayers) * self.cnn_outchannels
+        self.linear = nn.Linear(hszlin, self.hidden_size)
+
         #self.batchnorm_0 = nn.BatchNorm1d(enc_rnn_size, affine=True) # is this needed?
         
         # trf part of the encoder:
@@ -206,7 +241,8 @@ class AudioEncoderTrf(EncoderBase):
             opt.enc_rnn_size,
             opt.dropout[0] if type(opt.dropout) is list else opt.dropout,
             opt.cnn_kernel_width,
-            opt.n_mels*opt.n_stacked_mels,
+            opt.n_mels,
+            opt.n_stacked_mels,
             opt.heads,
             opt.transformer_ff,
             opt.max_relative_positions)
@@ -215,40 +251,43 @@ class AudioEncoderTrf(EncoderBase):
 
     def forward(self, src, lengths=None):
         """See :func:`onmt.encoders.encoder.EncoderBase.forward()`"""
-        #print('[bsz,1,input_hsz,src_len]=',src.size())
+        print('[bsz,1,input_hsz,src_len]=',src.size())
         batch_size, _, input_dim, src_len = src.size() #[bsz,1,input_hsz,src_len]
         orig_lengths = lengths
         lengths = lengths.view(-1).tolist() #[bsz,input_hsz,src_len,1]
-        
-        # correct shape for FWDnn                                   
-        src = src.transpose(2,3).transpose(0,1).contiguous().view(batch_size, src_len, input_dim) #[bsz, src_len, input_hsz]
-        src_reshape = src.view(src.size(0) * src.size(1), -1)    #[(bsz*src_len), emb_dim]
+
+        # ---------- CNN: ----------
+        # reshape for CNN with 3 cnn_inchannels
+        out = src.view(batch_size,self.cnn_inchannels,self.input_size,src_len) #[bsz,n_stacked_mels,n_mels,src_len]
+        for l,layer in enumerate(self.cnn):
+            out=layer(out)                  #[bsz,cnn_outchannels,n_mels/((l+1)*stride),src_len/((l+1)*stride)]
+            #pool = getattr(self, 'pool_%d' % (l+1))
+            #out = pool(out)            #[bsz,cnn_outchannels,n_mels/(2*(l+1)*stride),src_len]
+        # -------------------------------
+
+        # ----------- FFWD: -------------
+        # reshape for FWDnn 
+        out_reshape = out.transpose(1,3).contiguous().view((-1,self.linear.in_features)) #[(bsz*ceil(src_len/4)), cnn_outfeatures*n_mels/(numcnnlayers*stride)]                                  
         # FWD
-        src_remap = self.linear(src_reshape)                    #[(bsz*src_len), hdim]
-        # correct shape for StackedCNN
-        src_remap = src_remap.view(src.size(0), src.size(1), -1) #[bsz, src_len, hdim]
+        out_remap = self.linear(out_reshape)                    #[(bsz*src_len/4, hdim] <- 4 = numcnnlayers*stride
+        # reshape for Transformer
+        out = out_remap.view(batch_size, -1, self.linear.out_features) #[bsz, src_len/4, hdim]
+        ## ------------------------------
         
-        # ------ NEEDED FOR THE cnn: ----
-        ##src = shape_transform(src_remap)                         #[bsz,hdim,src_len,1]
-        ## StackedCNN
-        ##cnn_out = self.cnn(src)      #[bsz,input_hsz,src_len,1]
-        # reshape for trf layers:
-        ##out = cnn_out.squeeze(3).transpose(1,2).contiguous() # [bsz, src_len, hdim]
-        ## ------------------
-        
-        out = src_remap
-        # TRF                                                          
+        # ------------ TRF: -------------                                                         
         for layer in self.transformer:
-            out = layer(out, mask=None)
+            out = layer(out, mask=None)             #[bsz, src_len/4, hdim]
         out = self.layer_norm(out)
         # var to init decoder state
         state = out.new_full(out.shape, 0) # THIS IS A DUMMY - TRF DECODERS DON'T NEED INITIALIZATION
+        # -------------------------------
+
         # return enc_final, memory_bank, lengths
         return state, out.transpose(0, 1).contiguous(), orig_lengths.new_tensor(lengths)
 
         
 
-    # CNN
+    # CNNout 
     def cnnforward(self, input, lengths=None, hidden=None):
         """See :class:`onmt.modules.EncoderBase.forward()`"""
         import ipdb; ipdb.set_trace()
