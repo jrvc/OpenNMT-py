@@ -7,7 +7,7 @@ from torch.nn.utils.rnn import pack_padded_sequence as pack
 from torch.nn.utils.rnn import pad_packed_sequence as unpack
 
 from onmt.utils.rnn_factory import rnn_factory
-from onmt.utils.cnn_factory import shape_transform, GatedConv
+from onmt.utils.cnn_factory import shape_transform
 from onmt.encoders.encoder import EncoderBase
 
 
@@ -282,7 +282,7 @@ class AudioEncoderTrf(EncoderBase):
         state = out.new_full(out.shape, 0) # THIS IS A DUMMY - TRF DECODERS DON'T NEED INITIALIZATION
         # -------------------------------
 
-        # return enc_final, memory_bank, lengths
+        #return enc_final, memory_bank,               lengths
         return state, out.transpose(0, 1).contiguous(), orig_lengths.new_tensor(lengths)
 
         
