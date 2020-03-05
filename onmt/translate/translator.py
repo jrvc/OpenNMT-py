@@ -17,7 +17,7 @@ from onmt.translate.beam_search import BeamSearch
 from onmt.translate.random_sampling import RandomSampling
 from onmt.utils.misc import tile, set_random_seed
 from onmt.modules.copy_generator import collapse_copy_scores
-
+from onmt.decoders.transformer import TransformerDecoder
 
 def build_translator(opt, report_score=True, logger=None, out_file=None):
     if out_file is None:
@@ -179,7 +179,7 @@ class Translator(object):
         self.use_filter_pred = False
         self._filter_pred = None
 
-        self.use_attention_bridge=use_attention_bridge
+        self.use_attention_bridge = use_attention_bridge
         # for debugging
         self.beam_trace = self.dump_beam != ""
         self.beam_accum = None
@@ -635,11 +635,15 @@ class Translator(object):
         if self.use_attention_bridge:
             alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
 
-
+        #self.model.decoder.init_state(src, memory_bank, enc_states)
         self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
                 src, memory_bank, enc_states)
 
-        #self.model.decoder.init_state(src, memory_bank, enc_states)
+        # for transformer decoders, init state with correct size 
+        # (only used for masking, not needed with attBridge)
+        if self.use_attention_bridge and type(self.model.decoders[self.model.decoder_ids[self.tgt_lang]]) is TransformerDecoder:
+            self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
+                    memory_bank, memory_bank, enc_states)
 
         results = {
             "predictions": None,
