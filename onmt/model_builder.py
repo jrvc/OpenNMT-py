@@ -14,7 +14,7 @@ from onmt.encoders import str2enc
 
 from onmt.decoders import str2dec
 
-from onmt.modules import Embeddings, CopyGenerator
+from onmt.modules import Embeddings, CopyGenerator, PositionalEncoding
 from onmt.modules.util_class import Cast
 from onmt.utils.misc import use_gpu
 from onmt.utils.logging import logger
@@ -137,6 +137,8 @@ def build_embeddings_then_encoder(model_opt, fields):
     if model_opt.model_type == "text":
         src_field = fields["src"]
         src_emb = build_embeddings(model_opt, src_field)
+    elif model_opt.model_type == "audiotrf":
+        src_emb = PositionalEncoding(dropout=model_opt.dropout[0], dim=model_opt.n_mels*model_opt.n_stacked_mels)
     else:
         src_emb = None
 

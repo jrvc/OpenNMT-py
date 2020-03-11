@@ -79,14 +79,15 @@ class MultiTaskModel(nn.Module):
         if self.use_attention_bridge:
             alphas, memory_bank = self.attention_bridge(memory_bank, src)
 
-        enc_state = \
-            decoder.init_state(src, memory_bank, enc_final)
 
         # for transformer decoders, init state with correct size 
         # (only used for masking, not needed with attBridge)
         if self.use_attention_bridge and self.decoder_types[tgt_task]=='transformer':
             enc_state = \
                 decoder.init_state(memory_bank, memory_bank, enc_final)
+        else:
+            enc_state = \
+                decoder.init_state(src, memory_bank, enc_final)    
 
         decoder_outputs, attns = \
             decoder(tgt, memory_bank, memory_lengths=lengths)

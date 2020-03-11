@@ -166,10 +166,10 @@ class AudioEncoderTrf(EncoderBase):
         dropout (float): dropout probablity.
         window_size (int): input spec
     """
-    def __init__(self, enc_layers, hidden_size, dropout, cnn_kernel_width, 
+    def __init__(self, enc_layers, hidden_size, dropout, embeddings, cnn_kernel_width, 
                  n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions):
         super(AudioEncoderTrf, self).__init__()
-        
+        self.embeddings = embeddings
         # cnn part of the encoder:
         self.enc_layers = enc_layers
 
@@ -232,14 +232,13 @@ class AudioEncoderTrf(EncoderBase):
 
 
     @classmethod
-    def from_opt(cls, opt, embeddings=None):
+    def from_opt(cls, opt, embeddings):
         """Alternate constructor."""
-        if embeddings is not None:
-            raise ValueError("Cannot use embeddings with AudioEncoderTrf.")
         return cls(
             opt.enc_layers,
             opt.enc_rnn_size,
             opt.dropout[0] if type(opt.dropout) is list else opt.dropout,
+            embeddings,
             opt.cnn_kernel_width,
             opt.n_mels,
             opt.n_stacked_mels,
@@ -251,11 +250,16 @@ class AudioEncoderTrf(EncoderBase):
 
     def forward(self, src, lengths=None):
         """See :func:`onmt.encoders.encoder.EncoderBase.forward()`"""
-        print('[bsz,1,input_hsz,src_len]=',src.size())
+        #print('[bsz,1,input_hsz,src_len]=',src.size())
         batch_size, _, input_dim, src_len = src.size() #[bsz,1,input_hsz,src_len]
         orig_lengths = lengths
         lengths = lengths.view(-1).tolist() #[bsz,input_hsz,src_len,1]
-
+        
+        # --------- POS ENCODDINGS: ----------
+        src = self.embeddings(src.squeeze().transpose(0,2).transpose(1,2)) 
+        src = src.transpose(1,2).transpose(0,2).unsqueeze(1)
+        # ------------------------------------
+        
         # ---------- CNN: ----------
         # reshape for CNN with 3 cnn_inchannels
         out = src.view(batch_size,self.cnn_inchannels,self.input_size,src_len) #[bsz,n_stacked_mels,n_mels,src_len]
