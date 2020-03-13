@@ -18,20 +18,21 @@
 |     |   ENDEt2DEt.50m         |runnin |           |        |           |         |           |         |                                         |
 |     |   ENDEt2DEt.43m         |runnin |           |        |           |         |           |         |                                         |
 |  UMUTs 
-|     |   marian_en2de.50M     | done  |   35      |         |           |         |           |         |                                         |
+|     |   marian_en2de.50M     | done  |  ~35      |         |           |         |           |         |                                         |
 |(mustC)|   marian_en2de.n00.  | done  |   27.16   |         |           |         |           |         |                                         |
 |(mustC)|   marian_en2de.n15.  | done  |   28.44   |         |           |         |           |         |                                         |
-|(mustC)|   marian_ende2de.n00.| done  |           |         |           |         |           |         |                                         |
-|(mustC)|   marian_ende2de.n15.| done  |           |         |           |         |           |         |                                         |
+|(mustC)|   marian_ende2de.n00.| done  |   28.27   |         |           |         |           |         |                                         |
+|(mustC)|   marian_ende2de.n15.| done  |   29.31   |         |           |         |           |         |                                         |
 | --- |------------------------|-------|-----------|---------|-----------|---------|-----------|---------|-----------------------------------------|
 | ASR:|
 |     |   ENa2ENt         |   done     |           |         |    1.51   | 130K    |           |         |  trf_ena2det_1533364.err                |
-| trf |   ENa2ENt_posenc  | not-convrgd|           |         |    4.39   | 150K    |           |         |  trf_ena2entPE_1603257.err              |
+| trf |   ENa2ENt_posenc  | not-convrgd|           |         |    8.49   | 250K    |           |         |  trf_ena2entPE_1603257.err              |
 | aud |   ENa2ENtRNN      |   done     |           |         |    2.10   | 150K    |           |         |  trfrnn_ena2det_1603275.err             |
-|     |   ENaENt2ENt      | running    |           |         |           |         |           |         |  trf_enaent2ent_1612343.err             |
+|     |   ENaENt2ENt      | running    |           |         |    3.55   | 290K    |           |         |  trf_enaent2ent_1612343.err             |
 | --- |-------------------|------------|-----------|---------|-----------|---------|-----------|---------|-----------------------------------------|
 |     |   ENaRNN2ENt      |   done     |           |         |   30.40   | 170K    |           |         |  rnntrf_ena2det_1545021.err             |
 |train0| ENaRNN2ENtRNN    |   done     |           |         |   32.74   | 150K    |           |         |  err_train_358994                       |
+|     |  ENaRNNENt2ENt    | running    |           |         |           |         |           |         |  ntrftrf_enaent2ent__1629630.err        |
 | --- |-------------------|------------|-----------|---------|-----------|---------|-----------|---------|-----------------------------------------|
 | SLT:|                   |            |           |         |           |         |           |         |                                         |
 |     |   train3          |   done     |           |         |           |         |   5.00    |   380K  |  err_train_                             |
