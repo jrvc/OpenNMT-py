@@ -301,6 +301,16 @@ def preprocess_opts(parser):
     group.add('--n_stacked_mels', '-n_stacked_mels', type=int, default=1,
             help="Number Mel-scale filterbanks to stack"
                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
+    group.add('--n_freq_masks', '-n_freq_masks', type=int, default=2,
+            help="Number of frequency masks to apply to input."
+                 "The audio encoder will mask n frequency bands")
+    group.add('--w_freq_masks', '-w_freq_masks', type=int, default=20,
+            help="The max width of the frequency masks")
+    group.add('--n_time_masks', '-n_time_masks', type=int, default=2,
+            help="Number of time masks to apply to input."
+                 "The audio encoder will mask n segments")
+    group.add('--w_time_masks', '-w_time_masks', type=int, default=50,
+            help="The max width of the frequency masks")
     # Option most relevant to image input
     group.add('--image_channel_size', '-image_channel_size',
               type=int, default=3,
