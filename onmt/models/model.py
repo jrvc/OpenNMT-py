@@ -40,7 +40,8 @@ class MultiTaskModel(nn.Module):
 
         self.use_attention_bridge = model_opt.use_attention_bridge
         self.init_decoder = model_opt.init_decoder
-        self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads, model_opt)
+        if self.use_attention_bridge:
+                self.attention_bridge = AttentionBridge(model_opt.rnn_size, model_opt.attention_heads, model_opt)
         
         
         # generator ids is linked with decoder_ids
@@ -75,19 +76,34 @@ class MultiTaskModel(nn.Module):
         #TEST
         alphas = None
         
-        # Implement attention bridge/compound attention
         if self.use_attention_bridge:
             alphas, memory_bank = self.attention_bridge(memory_bank, src)
+            if self.decoder_types[tgt_task]=='transformer':
+                enc_state = decoder.init_state(memory_bank, memory_bank, enc_final)
+            else: 
+                enc_state = decoder.init_state(src, memory_bank, enc_final) 
+        else:
+            if self.decoder_types[tgt_task]=='transformer' and isinstance(encoder, (onmt.encoders.audio_encoder.AudioEncoder,onmt.encoders.audio_encoder.AudioEncoderTrf)):
+                src4init=memory_bank.squeeze(1)
+                enc_state = decoder.init_state(src4init, memory_bank, enc_final) 
+            else:
+                enc_state = decoder.init_state(src, memory_bank, enc_final) 
 
+
+
+
+        # Implement attention bridge/compound attention
+        #if self.use_attention_bridge:
+        #    alphas, memory_bank = self.attention_bridge(memory_bank, src)
 
         # for transformer decoders, init state with correct size 
         # (only used for masking, not needed with attBridge)
-        if self.use_attention_bridge and self.decoder_types[tgt_task]=='transformer':
-            enc_state = \
-                decoder.init_state(memory_bank, memory_bank, enc_final)
-        else:
-            enc_state = \
-                decoder.init_state(src, memory_bank, enc_final)    
+        #if self.use_attention_bridge and self.decoder_types[tgt_task]=='transformer':
+        #    enc_state = \
+        #        decoder.init_state(memory_bank, memory_bank, enc_final)
+        #else:
+        #    enc_state = \
+        #        decoder.init_state(src, memory_bank, enc_final)    
 
         decoder_outputs, attns = \
             decoder(tgt, memory_bank, memory_lengths=lengths)
