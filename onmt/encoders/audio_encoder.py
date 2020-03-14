@@ -256,7 +256,7 @@ class AudioEncoderTrf(EncoderBase):
         lengths = lengths.view(-1).tolist() #[bsz,input_hsz,src_len,1]
         
         # --------- POS ENCODDINGS: ----------
-        src = self.embeddings(src.squeeze().transpose(0,2).transpose(1,2)) 
+        src = self.embeddings(src.squeeze(1).transpose(0,2).transpose(1,2)) 
         src = src.transpose(1,2).transpose(0,2).unsqueeze(1)
         # ------------------------------------
         
