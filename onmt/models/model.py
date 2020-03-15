@@ -84,8 +84,8 @@ class MultiTaskModel(nn.Module):
                 enc_state = decoder.init_state(src, memory_bank, enc_final) 
         else:
             if self.decoder_types[tgt_task]=='transformer' and isinstance(encoder, (onmt.encoders.audio_encoder.AudioEncoder,onmt.encoders.audio_encoder.AudioEncoderTrf)):
-                src4init=memory_bank.squeeze(1)
-                enc_state = decoder.init_state(src4init, memory_bank, enc_final) 
+                #src4init=memory_bank
+                enc_state = decoder.init_state(memory_bank, memory_bank, enc_final) 
             else:
                 enc_state = decoder.init_state(src, memory_bank, enc_final) 
 
