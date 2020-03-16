@@ -138,7 +138,8 @@ def build_embeddings_then_encoder(model_opt, fields):
         src_field = fields["src"]
         src_emb = build_embeddings(model_opt, src_field)
     elif model_opt.model_type == "audiotrf":
-        src_emb = PositionalEncoding(dropout=model_opt.dropout[0], dim=model_opt.n_mels*model_opt.n_stacked_mels, max_len=16000)
+        #src_emb = PositionalEncoding(dropout=model_opt.dropout[0], dim=model_opt.n_mels*model_opt.n_stacked_mels, max_len=20000)
+        src_emb = PositionalEncoding(dropout=model_opt.dropout[0], dim=model_opt.rnn_size, max_len=20000)
     else:
         src_emb = None
 
