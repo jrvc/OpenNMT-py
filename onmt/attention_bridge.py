@@ -26,7 +26,7 @@ class AttentionBridge(nn.Module):
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
         self.attention_hops = r
-        self.layer_norm = nn.LayerNorm(d, eps=1e-6)
+        #self.layer_norm = nn.LayerNorm(d, eps=1e-6)
         self.M = None
 
 
@@ -34,7 +34,7 @@ class AttentionBridge(nn.Module):
         output, alphas = self.mixAtt(enc_output, enc_input)
         #take transpose to match dimensions s.t. r=new_seq_len:
         self.M = torch.transpose(output, 0, 1).contiguous() #[r,bsz,nhid]
-        self.M = self.layer_norm(self.M)
+        #self.M = self.layer_norm(self.M)
         #h_avrg = (self.M).mean(dim=0, keepdim=True)
         return alphas, self.M
 
