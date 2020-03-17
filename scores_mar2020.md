@@ -15,8 +15,8 @@
 |     |   ENt2DEt_Mtrf.50m      | done  |    14     |  210K  |           |         |           |         |                                         |
 |     |   ENt2DEt.43m           | done  |    22.68  |  210K  |           |         |           |         |                                         | 
 |     |   ENt2DEt_Mtrf.43m      | done  |    12     |  210K  |           |         |           |         |                                         |
-|     |   ENDEt2DEt.50m         |runnin |           |        |           |         |           |         |                                         |
-|     |   ENDEt2DEt.43m         |runnin |           |        |           |         |           |         |                                         |
+|     |   ENDEt2DEt.50m         | done  |   21.01   |  ~150K |           |         |           |         |                                         |
+|     |   ENDEt2DEt.43m         | done  |   21.42   |  ~150K |           |         |           |         |                                         |
 |  UMUTs 
 |     |   marian_en2de.50M     | done  |  ~35      |         |           |         |           |         |                                         |
 |(mustC)|   marian_en2de.n00.  | done  |   27.16   |         |           |         |           |         |                                         |
