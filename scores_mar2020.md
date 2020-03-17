@@ -45,3 +45,16 @@
 
 
 
+|     |     opt                 | STATUS | ASR BLEU  | MT BLEU  | <-step  |  train_logNAME.err                      |
+|-----|-------------------------|--------|-----------|-----------|---------|-----------------------------------------|
+|     | 3en.3dec.6skmel.100ah      |  done  |   8.49   |         | 250K |   atrf_3en.3dec.6skmel.100ah_1610713.err     |
+|     | 3en.3dec.4skmel.100ah      |  done  |  12.03   |         | 250K |   atrf_3en.3dec.4skmel.50ah_1612139.err      |
+|     | 2enc.3dec.4skmel.100ah     |  done  |  13.85   |         | 280K |  atrf_2enc.3dec.4skmel.100ah_1629127.err     |
+|     | 2enc.3dec.4skmel.0ah       |  done  |  14.34   |         | 280K |   atrf_2enc.3dec.4skmel.0ah_1643986.err      |
+|     | trf_ENaENt2DEtENt          |  done  |   0.51   |         | 270K |   trf_ENaENt2DEtENt.3en.3dec.4skmel.100ah    |
+| --- |----------------------------|--------|----------|-------|-------------------------|
+| R-Transformer:
+|     | 2enc.3dec.4skmel.100ah.layernorm  |  done  |   0.86   |         | 240K |   atrf_2enc.3dec.4skmel.100ah_1655912.err     |                                               
+|     | 2enc.3dec.4skmel.0ah       |  done  |   7.50   |         | 280K |   atrf_2enc.3dec.4skmel.0ah_1655914.err       |
+|     | 2enc.3dec.4skmel.100ah     | running|          |         |      |   atrf_2enc.3dec.4skmel.100ah_1664046.err     |
+
