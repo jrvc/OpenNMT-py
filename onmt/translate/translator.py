@@ -632,18 +632,37 @@ class Translator(object):
         # (1) Run the encoder on the src.
         src, enc_states, memory_bank, src_lengths = self._run_encoder(batch)
         
-        if self.use_attention_bridge:
-            alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
+        #if self.use_attention_bridge:
+        #    alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
 
         #self.model.decoder.init_state(src, memory_bank, enc_states)
-        self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
-                src, memory_bank, enc_states)
+        #self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
+        #        src, memory_bank, enc_states)
 
         # for transformer decoders, init state with correct size 
         # (only used for masking, not needed with attBridge)
-        if self.use_attention_bridge and type(self.model.decoders[self.model.decoder_ids[self.tgt_lang]]) is TransformerDecoder:
-            self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
-                    memory_bank, memory_bank, enc_states)
+        #if self.use_attention_bridge and type(self.model.decoders[self.model.decoder_ids[self.tgt_lang]]) is TransformerDecoder:
+        #    self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
+        #            memory_bank, memory_bank, enc_states)
+
+        if self.use_attention_bridge:
+            alphasZ, memory_bank = self.attention_bridge(memory_bank, src)
+            if type(self.model.decoders[self.model.decoder_ids[self.tgt_lang]]) is TransformerDecoder:
+                self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
+                        memory_bank, memory_bank, enc_states)
+            else:
+                self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
+                        src, memory_bank, enc_states)
+        else:
+            if type(self.model.decoders[self.model.decoder_ids[self.tgt_lang]]) is TransformerDecoder:
+                if isinstance(self.model.encoders[self.model.encoder_ids[self.src_lang]], (onmt.encoders.audio_encoder.AudioEncoder,onmt.encoders.audio_encoder.AudioEncoderTrf)):
+                    #src4init=memory_bank
+                    enc_state = decoder.init_state(memory_bank, memory_bank, enc_final)
+
+            else:
+                enc_state = decoder.init_state(src, memory_bank, enc_final)
+
+
 
         results = {
             "predictions": None,
