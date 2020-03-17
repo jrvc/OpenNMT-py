@@ -646,7 +646,7 @@ class Translator(object):
         #            memory_bank, memory_bank, enc_states)
 
         if self.use_attention_bridge:
-            alphasZ, memory_bank = self.attention_bridge(memory_bank, src)
+            alphasZ, memory_bank = self.model.attention_bridge(memory_bank, src)
             if type(self.model.decoders[self.model.decoder_ids[self.tgt_lang]]) is TransformerDecoder:
                 self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
                         memory_bank, memory_bank, enc_states)
