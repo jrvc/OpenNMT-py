@@ -56,5 +56,10 @@
 | R-Transformer:
 |     | 2enc.3dec.4skmel.100ah.layernorm  |  done  |   0.86   |         | 240K |   atrf_2enc.3dec.4skmel.100ah_1655912.err     |                                               
 |     | 2enc.3dec.4skmel.0ah       |  done  |   7.50   |         | 280K |   atrf_2enc.3dec.4skmel.0ah_1655914.err       |
-|     | 2enc.3dec.4skmel.100ah     | running|          |         |      |   atrf_2enc.3dec.4skmel.100ah_1664046.err     |
-
+|     | 2enc.3dec.4skmel.100ah     |  done  |          |         |      |   atrf_2enc.3dec.4skmel.100ah_1664046.err     |
+|     | 2enc.3dec.4skmel.100ah     |  done  |   5.70   |         | 280K |   atrf_2enc.3dec.4skmel.100ah_1664046.err                                                    
+|     |2enc.3dec.4skmel.100ah.accum|  done  |29.9/32.4 |         |44/112k|   atrf_2enc.3dec.4skmel.100ah.accum_{1675765,1676309}.err |
+|     | FBKfairseq-MUSTc           |  done  |  56.73   |   0.0!? |      |bleu score in outfile: asr=61.31  slt=0.0        |
+| all with accum:
+|     | 3enc.3dec.4skmel.100ah     |  done  |  32.12   |         |  44K |   atrf_6enc.3dec.4skmel.100ah_1694492         |
+|     | 3enc.6dec.4skmel.100ah     |  done  |  30.87   |         |  44K |   atrf_6enc.6dec.4skmel.100ah_1694493         |
