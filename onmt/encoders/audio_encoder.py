@@ -436,7 +436,8 @@ class AudioEncoderTrfSpecAugment(EncoderBase):
         # reshape for CNN with 3 cnn_inchannels
         out = src.view(batch_size,self.cnn_inchannels,self.input_size,src_len) #[bsz,n_stacked_mels,n_mels,src_len]
         for l,layer in enumerate(self.cnn):
-            out=layer(out)                  #[bsz,cnn_outchannels,n_mels/((l+1)*stride),src_len/((l+1)*stride)]
+            out=layer(out)                         #[bsz,cnn_outchannels,n_mels/((l+1)*stride),src_len/((l+1)*stride)]
+            out=self.dropout(out)                  #[bsz,cnn_outchannels,n_mels/((l+1)*stride),src_len/((l+1)*stride)]
             #pool = getattr(self, 'pool_%d' % (l+1))
             #out = pool(out)            #[bsz,cnn_outchannels,n_mels/(2*(l+1)*stride),src_len]
         # -------------------------------
@@ -445,9 +446,10 @@ class AudioEncoderTrfSpecAugment(EncoderBase):
         # reshape for FWDnn 
         out_reshape = out.transpose(1,3).contiguous().view((-1,self.linear.in_features)) #[(bsz*ceil(src_len/4)), cnn_outfeatures*n_mels/(numcnnlayers*stride)]                                  
         # FWD
-        out_remap = self.linear(out_reshape)                    #[(bsz*src_len/4, hdim] <- 4 = numcnnlayers*stride
+        out_remap = self.linear(out_reshape)                    #[(bsz*src_len/4, hdim] <- <- 4 = stride^numcnnlayers
         # reshape for Transformer
         out = out_remap.view(batch_size, -1, self.linear.out_features) #[bsz, src_len/4, hdim]
+        out = self.relu(self.dropout(out))                             #[bsz, src_len/4, hdim]
         ## ------------------------------
         
         # ------------ TRF: -------------                                                         
