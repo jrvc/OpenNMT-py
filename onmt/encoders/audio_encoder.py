@@ -154,6 +154,7 @@ class AudioEncoder(EncoderBase):
 
 from onmt.modules import MultiHeadedAttention
 from onmt.encoders.transformer import TransformerEncoderLayer
+from onmt.modules import SpecAugment 
 
 class AudioEncoderTrf(EncoderBase):
     """A 2xCNN -> LxTrf encoder for audio input.
@@ -170,6 +171,10 @@ class AudioEncoderTrf(EncoderBase):
                  n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions):
         super(AudioEncoderTrf, self).__init__()
         self.embeddings = embeddings
+
+        #specaugment layer:
+        self.specaugment = SpecAugment(n_freq_masks, n_time_masks, w_freq_masks, w_time_masks)
+
         # cnn part of the encoder:
         self.enc_layers = enc_layers
 
@@ -244,16 +249,24 @@ class AudioEncoderTrf(EncoderBase):
             opt.n_stacked_mels,
             opt.heads,
             opt.transformer_ff,
-            opt.max_relative_positions)
-    
+            opt.max_relative_positions,
+            opt.n_freq_masks,
+            opt.n_time_masks,
+            opt.w_freq_masks,
+            opt.w_time_masks)
 
 
     def forward(self, src, lengths=None):
+
         """See :func:`onmt.encoders.encoder.EncoderBase.forward()`"""
         #print('[bsz,1,input_hsz,src_len]=',src.size())
         batch_size, _, input_dim, src_len = src.size() #[bsz,1,input_hsz,src_len]
         orig_lengths = lengths
         lengths = lengths.view(-1).tolist() #[bsz,input_hsz,src_len,1]
+
+        # ---- Before anything, apply SpecAugment: ----
+        src = self.specaugment(src) #In eval, this is a no-op
+        # ---------------------------------------------
         
         # --------- POS ENCODDINGS: ----------
         #src = self.embeddings(src.squeeze(1).transpose(0,2).transpose(1,2)) 
@@ -297,52 +310,11 @@ class AudioEncoderTrf(EncoderBase):
 
         
 
-    # CNNout 
-    def cnnforward(self, input, lengths=None, hidden=None):
-        """See :class:`onmt.modules.EncoderBase.forward()`"""
-        import ipdb; ipdb.set_trace()
-        self._check_args(input, lengths, hidden)
-
-        emb = self.embeddings(input)                             #[src_len, bsz, emb_dim]
-        emb = emb.transpose(0, 1).contiguous()                   #[bsz, src_len, emb_dim]
-        emb_reshape = emb.view(emb.size(0) * emb.size(1), -1)    #[(bsz*src_len), emb_dim]
-        emb_remap = self.linear(emb_reshape)                     #[(bsz*src_len), emb_dim]
-        emb_remap = emb_remap.view(emb.size(0), emb.size(1), -1) #[bsz, src_len, emb_dim]
-        emb_remap = shape_transform(emb_remap)                   #[bsz, emb_dim, src_len, 1]
-        out = self.cnn(emb_remap)                                #[bsz, emb_dim, src_len, 1]
-
-        return emb_remap.squeeze(3).transpose(0, 1).contiguous(), \
-            out.squeeze(3).transpose(0, 1).contiguous(), lengths    #[emb_dim,bsz,src_len],[emb_dim,bsz,src_len], [bsz]
-
-    # TRF:
-    def trfforward(self, src, lengths=None):
-        """See :func:`EncoderBase.forward()`"""
-        import ipdb; ipdb.set_trace()
-        self._check_args(src, lengths)
-
-        emb = self.embeddings(src) # embeddings_layer: [vocabsz] -> [rnn_size]
-                                   # dim(emb) = [src_len, bsz, emb_dim]
-
-        out = emb.transpose(0, 1).contiguous() # [bsz, src_len, emb_dim]
-        words = src[:, :, 0].transpose(0, 1)
-        w_batch, w_len = words.size()
-        padding_idx = self.embeddings.word_padding_idx
-        mask = words.data.eq(padding_idx).unsqueeze(1)  # [B, 1, T]
-        # Run the forward pass of every layer of the tranformer.
-        for layer in self.transformer:
-            out = layer(out, mask)
-        out = self.layer_norm(out)
-
-        return emb, out.transpose(0, 1).contiguous(), lengths
-
-
-
     def update_dropout(self, dropout):
         self.dropout.p = dropout
         for i in range(self.enc_layers - 1):
             getattr(self, 'rnn_%d' % i).dropout = dropout
 
-from onmt.modules import SpecAugment 
 
 class AudioEncoderTrfSpecAugment(EncoderBase):
     """A 2xCNN -> LxTrf encoder for audio input.
