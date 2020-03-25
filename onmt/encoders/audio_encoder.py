@@ -168,7 +168,8 @@ class AudioEncoderTrf(EncoderBase):
         window_size (int): input spec
     """
     def __init__(self, enc_layers, hidden_size, dropout, embeddings, cnn_kernel_width, 
-                 n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions):
+                 n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions,
+                 n_freq_masks, n_time_masks, w_freq_masks, w_time_masks):
         super(AudioEncoderTrf, self).__init__()
         self.embeddings = embeddings
 
