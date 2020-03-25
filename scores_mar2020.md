@@ -15,8 +15,8 @@
 |     |   ENt2DEt_Mtrf.50m      | done  |    14     |  210K  |           |         |           |         |                                         |
 |     |   ENt2DEt.43m           | done  |    22.68  |  210K  |           |         |           |         |                                         | 
 |     |   ENt2DEt_Mtrf.43m      | done  |    12     |  210K  |           |         |           |         |                                         |
-|     |   ENDEt2DEt.50m         |runnin |           |        |           |         |           |         |                                         |
-|     |   ENDEt2DEt.43m         |runnin |           |        |           |         |           |         |                                         |
+|     |   ENDEt2DEt.50m         | done  |   21.01   |  ~150K |           |         |           |         |                                         |
+|     |   ENDEt2DEt.43m         | done  |   21.42   |  ~150K |           |         |           |         |                                         |
 |  UMUTs 
 |     |   marian_en2de.50M     | done  |  ~35      |         |           |         |           |         |                                         |
 |(mustC)|   marian_en2de.n00.  | done  |   27.16   |         |           |         |           |         |                                         |
@@ -45,3 +45,21 @@
 
 
 
+|     |     opt                 | STATUS | ASR BLEU  | MT BLEU  | <-step  |  train_logNAME.err                      |
+|-----|-------------------------|--------|-----------|-----------|---------|-----------------------------------------|
+|     | 3en.3dec.6skmel.100ah      |  done  |   8.49   |         | 250K |   atrf_3en.3dec.6skmel.100ah_1610713.err     |
+|     | 3en.3dec.4skmel.100ah      |  done  |  12.03   |         | 250K |   atrf_3en.3dec.4skmel.50ah_1612139.err      |
+|     | 2enc.3dec.4skmel.100ah     |  done  |  13.85   |         | 280K |  atrf_2enc.3dec.4skmel.100ah_1629127.err     |
+|     | 2enc.3dec.4skmel.0ah       |  done  |  14.34   |         | 280K |   atrf_2enc.3dec.4skmel.0ah_1643986.err      |
+|     | trf_ENaENt2DEtENt          |  done  |   0.51   |         | 270K |   trf_ENaENt2DEtENt.3en.3dec.4skmel.100ah    |
+| --- |----------------------------|--------|----------|-------|-------------------------|
+| R-Transformer:
+|     | 2enc.3dec.4skmel.100ah.layernorm  |  done  |   0.86   |         | 240K |   atrf_2enc.3dec.4skmel.100ah_1655912.err     |                                               
+|     | 2enc.3dec.4skmel.0ah       |  done  |   7.50   |         | 280K |   atrf_2enc.3dec.4skmel.0ah_1655914.err       |
+|     | 2enc.3dec.4skmel.100ah     |  done  |          |         |      |   atrf_2enc.3dec.4skmel.100ah_1664046.err     |
+|     | 2enc.3dec.4skmel.100ah     |  done  |   5.70   |         | 280K |   atrf_2enc.3dec.4skmel.100ah_1664046.err                                                    
+|     |2enc.3dec.4skmel.100ah.accum|  done  |29.9/32.4 |         |44/112k|   atrf_2enc.3dec.4skmel.100ah.accum_{1675765,1676309}.err |
+|     | FBKfairseq-MUSTc           |  done  |  56.73   |   0.0!? |      |bleu score in outfile: asr=61.31  slt=0.0        |
+| all with accum:
+|     | 3enc.3dec.4skmel.100ah     |  done  |  32.12   |         |  44K |   atrf_6enc.3dec.4skmel.100ah_1694492         |
+|     | 3enc.6dec.4skmel.100ah     |  done  |  30.87   |         |  44K |   atrf_6enc.6dec.4skmel.100ah_1694493         |
