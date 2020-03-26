@@ -134,6 +134,13 @@ def model_opts(parser):
     # audio encoder options
     group.add('--use_spec_augment', '-use_spec_augment',
             action='store_true', help="""Use spec augment layer during training on audio encoder""")
+    group.add('--truncate_audiofeats', '-truncate_audiofeats',
+              type=int, default=None,
+              help="Truncate audio source sequence length at training/testing time.")
+    group.add('--drop_audioafter', '-drop_audioafter',
+              type=int, default=None,
+              help="Drop audio utterances which length surpasses this treshold at training/testing time.")
+
 
     # Attention options
     group = parser.add_argument_group('Model- Attention')

@@ -652,6 +652,24 @@ class MultipleDatasetIterator(object):
                                        self.device)
 
 
+
+
+def collect_filtered(iterable_dataset, treshold, filtered_examples):
+    """
+    Collects filtered elements in ``filtered``.
+
+    Args:
+        
+        iterable_dataset (iterable): dataset to filter
+        filtered (list): list to store filtered elements
+    """
+    for ex in iterable_dataset:
+        if el.src.shape[1] > treshold:
+            yield ex
+        else:
+            filtered_examples.append(ex)
+
+
 class DatasetLazyIter(object):
     """Yield data from sharded dataset files.
 
@@ -666,7 +684,7 @@ class DatasetLazyIter(object):
     """
 
     def __init__(self, dataset_paths, fields, batch_size, batch_size_fn,
-                 batch_size_multiple, device, is_train, pool_factor,
+                 batch_size_multiple, device, is_train, pool_factor, truncate_audio=None, drop_audioafter=None,
                  repeat=True, num_batches_multiple=1, yield_raw_example=False, n_mels=80, n_stacked_mels=1):
         self._paths = dataset_paths
         self.fields = fields
@@ -681,6 +699,8 @@ class DatasetLazyIter(object):
         self.pool_factor = pool_factor
         self.n_stacked_mels = n_stacked_mels
         self.n_mels = n_mels
+        self.truncate_audio = truncate_audio
+        self.drop_audioafter = drop_audioafter
    
     def _iter_dataset(self, path):
         cur_dataset = torch.load(path)
@@ -688,9 +708,32 @@ class DatasetLazyIter(object):
                     (path, len(cur_dataset)))
         cur_dataset.fields = self.fields
         # Stack mel_fbanks for audio files, with n_stacked_mels option
-        if isinstance(self.fields['src'],AudioSeqField) and self.n_stacked_mels>1:
-            for i,example in enumerate(cur_dataset.examples):
-                cur_dataset.examples[i].src = stack_mel_filters(example.src,self.n_mels,self.n_stacked_mels) # function in inputters.audio_dataset.py
+        if isinstance(self.fields['src'],AudioSeqField):
+            if self.n_stacked_mels>1:
+                for i,example in enumerate(cur_dataset.examples):
+                    cur_dataset.examples[i].src = stack_mel_filters(example.src,self.n_mels,self.n_stacked_mels) # function in inputters.audio_dataset.py
+            if self.truncate_audio and not self.drop_audioafter:
+                n_tr=0
+                for i,example in enumerate(cur_dataset.examples):
+                    if example.src.shape[1] > self.truncate_audio:
+                        cur_dataset.examples[i].src = cur_dataset.examples[i].src[:,:self.truncate_audio]
+                        n_tr +=1
+                if n_tr > 0:
+                    logger.info('Truncated %d examples to size %d' % (n_tr, self.truncate_audio))
+            if self.drop_audioafter:
+                #import ipdb; ipdb.set_trace()
+                #filtered_examples = []
+                #cur_dataset = collect_filtered(cur_dataset, self.drop_audioafter, filtered_examples)
+
+                n_tr=0
+                for i,example in enumerate(cur_dataset.examples):
+                    if example.src.shape[1] > self.drop_audioafter:
+                        # CHEAPEST TRICK
+                        cur_dataset.examples[i].src = torch.zeros((self.n_mels*self.n_stacked_mels,1))
+                        cur_dataset.examples[i].tgt = [['<empty>']]
+                        n_tr +=1
+                if n_tr > 0:
+                    logger.info('Dropped %d examples. Size exceeds --drop_audioafter %d' % (n_tr, self.drop_audioafter))
 
         cur_iter = OrderedIterator(
             dataset=cur_dataset,
@@ -791,6 +834,8 @@ def build_dataset_iter(corpus_type, fields, data_path, opt, is_train=True, multi
         device,
         is_train,
         opt.pool_factor,
+        opt.truncate_audiofeats,
+        opt.drop_audioafter,
         repeat=not opt.single_pass,
         num_batches_multiple=max(opt.accum_count) * opt.world_size,
         yield_raw_example=multi,

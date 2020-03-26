@@ -154,7 +154,6 @@ class AudioEncoder(EncoderBase):
 
 from onmt.modules import MultiHeadedAttention
 from onmt.encoders.transformer import TransformerEncoderLayer
-#from onmt.modules import SpecAugment 
 
 class AudioEncoderTrf(EncoderBase):
     """A 2xCNN -> LxTrf encoder for audio input.
