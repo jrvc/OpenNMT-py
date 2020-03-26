@@ -37,7 +37,7 @@ class SpecAugment(nn.Module):
 
     @torch.no_grad()
     def forward(self, x):
-        if self.training:
+        if not self.training:
             return x
         sh = x.shape
 
@@ -58,7 +58,7 @@ class SpecAugment(nn.Module):
 
                 mask[idx, :, y_left : y_left + w] = 1
 
-        x = x.masked_fill(mask.type(torch.bool).to(device=x.device), 0)
+        x = x.masked_fill(mask.to(device=x.device), 0)
 
         return x
 

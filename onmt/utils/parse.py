@@ -49,7 +49,7 @@ class ArgumentParser(cfargparse.ArgumentParser):
     @classmethod
     def validate_model_opts(cls, model_opt):
         for model_type in model_opt.model_type:
-            assert model_type in ["text", "img", "audio", "audiotrf"], \
+            assert model_type in ["text", "img", "audio", "audiotrf","audiotrfv1"], \
                 "Unsupported model type %s" % model_opt.model_type
 
         # this check is here because audio allows the encoder and decoder to

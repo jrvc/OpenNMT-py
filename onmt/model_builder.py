@@ -13,8 +13,8 @@ import onmt.modules
 from onmt.encoders import str2enc
 
 from onmt.decoders import str2dec
-
-from onmt.modules import Embeddings, CopyGenerator, PositionalEncoding
+ 
+from onmt.modules import Embeddings, CopyGenerator, PositionalEncoding, SpecAugment
 from onmt.modules.util_class import Cast
 from onmt.utils.misc import use_gpu
 from onmt.utils.logging import logger
@@ -137,12 +137,16 @@ def build_embeddings_then_encoder(model_opt, fields):
     if model_opt.model_type == "text":
         src_field = fields["src"]
         src_emb = build_embeddings(model_opt, src_field)
-    elif model_opt.model_type == "audiotrf":
+    elif model_opt.model_type == "audiotrf" :
         #src_emb = PositionalEncoding(dropout=model_opt.dropout[0], dim=model_opt.n_mels*model_opt.n_stacked_mels, max_len=20000)
         src_emb = PositionalEncoding(dropout=model_opt.dropout[0], dim=model_opt.rnn_size, max_len=20000)
+    elif model_opt.model_type == "audiotrfv1" :
+        src_emb = PositionalEncoding(dropout=model_opt.dropout[0], dim=model_opt.n_mels*model_opt.n_stacked_mels, max_len=20000)
     else:
         src_emb = None
-
+    if model_opt.use_spec_augment and model_opt.model_type in ['audiotrf','audiotrfv1']:
+        specaugment = SpecAugment(model_opt.n_freq_masks, model_opt.n_time_masks, model_opt.w_freq_masks, model_opt.w_time_masks)
+        src_emb = (src_emb, specaugment)
     # Build encoder.
     encoder = build_encoder(model_opt, src_emb)
 
@@ -305,7 +309,7 @@ def build_base_multitask_model(model_opt, fields, gpu, encoders, decoders, gener
         the NMTModel.
     """
     for model_type in model_opt.model_type:
-        assert model_type in ["text", "img", "audio", "audiotrf"], \
+        assert model_type in ["text", "img", "audio", "audiotrf", "audiotrfv1"], \
                 ("Unsupported model type %s" % (model_opt.model_type))
 
     device = torch.device("cuda" if gpu else "cpu")

@@ -60,7 +60,7 @@ def model_opts(parser):
     # Encoder-Decoder Options
     group = parser.add_argument_group('Model- Encoder-Decoder')
     group.add('--model_type', '-model_type', nargs='+', type=str, default='text',
-              choices=['text', 'img', 'audio', 'audiotrf'],
+              choices=['text', 'img', 'audio', 'audiotrf', 'audiotrfv1'],
               help="Type of source model to use. Allows "
                    "the system to incorporate non-text inputs. "
                    "Options are [text|img|audio].")
@@ -119,9 +119,10 @@ def model_opts(parser):
               choices=['LSTM', 'GRU', 'SRU'],
               action=CheckSRU,
               help="The gate type to use in the RNNs")
+
     # group.add('--residual', '-residual',   action="store_true",
     #                     help="Add residual connections between RNN layers.")
-
+    
     group.add('--brnn', '-brnn', action=DeprecateAction,
               help="Deprecated, use `encoder_type`.")
 
@@ -129,6 +130,10 @@ def model_opts(parser):
               choices=['source', 'target', 'both'],
               help="Type of context gate to use. "
                    "Do not select for no context gate.")
+    
+    # audio encoder options
+    group.add('--use_spec_augment', '-use_spec_augment',
+            action='store_true', help="""Use spec augment layer during training on audio encoder""")
 
     # Attention options
     group = parser.add_argument_group('Model- Attention')

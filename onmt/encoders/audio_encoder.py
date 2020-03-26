@@ -154,7 +154,7 @@ class AudioEncoder(EncoderBase):
 
 from onmt.modules import MultiHeadedAttention
 from onmt.encoders.transformer import TransformerEncoderLayer
-from onmt.modules import SpecAugment 
+#from onmt.modules import SpecAugment 
 
 class AudioEncoderTrf(EncoderBase):
     """A 2xCNN -> LxTrf encoder for audio input.
@@ -168,13 +168,15 @@ class AudioEncoderTrf(EncoderBase):
         window_size (int): input spec
     """
     def __init__(self, enc_layers, hidden_size, dropout, embeddings, cnn_kernel_width, 
-                 n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions,
-                 n_freq_masks, n_time_masks, w_freq_masks, w_time_masks):
+                 n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions):
         super(AudioEncoderTrf, self).__init__()
-        self.embeddings = embeddings
 
-        #specaugment layer:
-        self.specaugment = SpecAugment(n_freq_masks, n_time_masks, w_freq_masks, w_time_masks)
+        # specaugment layer is sent with the embeddings layer
+        if isinstance(embeddings,tuple):
+            self.embeddings, self.specaugment = embeddings
+        else:
+            self.embeddings = embeddings
+            self.specaugment = lambda x: x # do nothing
 
         # cnn part of the encoder:
         self.enc_layers = enc_layers
@@ -250,11 +252,7 @@ class AudioEncoderTrf(EncoderBase):
             opt.n_stacked_mels,
             opt.heads,
             opt.transformer_ff,
-            opt.max_relative_positions,
-            opt.n_freq_masks,
-            opt.n_time_masks,
-            opt.w_freq_masks,
-            opt.w_time_masks)
+            opt.max_relative_positions)
 
 
     def forward(self, src, lengths=None):
@@ -268,11 +266,6 @@ class AudioEncoderTrf(EncoderBase):
         # ---- Before anything, apply SpecAugment: ----
         src = self.specaugment(src) #In eval, this is a no-op
         # ---------------------------------------------
-        
-        # --------- POS ENCODDINGS: ----------
-        #src = self.embeddings(src.squeeze(1).transpose(0,2).transpose(1,2)) 
-        #src = src.transpose(1,2).transpose(0,2).unsqueeze(1)
-        # ------------------------------------
         
         # ---------- CNN: ----------
         # reshape for CNN with 3 cnn_inchannels
@@ -317,7 +310,7 @@ class AudioEncoderTrf(EncoderBase):
             getattr(self, 'rnn_%d' % i).dropout = dropout
 
 
-class AudioEncoderTrfSpecAugment(EncoderBase):
+class AudioEncoderTrfv1(EncoderBase):
     """A 2xCNN -> LxTrf encoder for audio input.
 
     Args:
@@ -329,13 +322,16 @@ class AudioEncoderTrfSpecAugment(EncoderBase):
         window_size (int): input spec
     """
     def __init__(self, enc_layers, hidden_size, dropout, embeddings, cnn_kernel_width, 
-                 n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions,
-                 n_freq_masks, n_time_masks, w_freq_masks, w_time_masks):
-        super(AudioEncoderTrf, self).__init__()
-        self.embeddings = embeddings
-        #specaugment layer:
-        self.specaugment = SpecAugment(n_freq_masks, n_time_masks, w_freq_masks, w_time_masks)
+                 n_mels,n_stacked_mels, heads, transformer_ff, max_relative_positions):
+        super(AudioEncoderTrfv1, self).__init__()
 
+        # specaugment layer is sent with the embeddings layer
+        if isinstance(embeddings,tuple):
+            self.embeddings, self.specaugment = embeddings
+        else:
+            self.embeddings = embeddings
+            self.specaugment = lambda x: x # do nothing
+        
         # cnn part of the encoder:
         self.enc_layers = enc_layers
 
@@ -385,7 +381,7 @@ class AudioEncoderTrfSpecAugment(EncoderBase):
         
         hszlin = self.input_size//(self.stride*self.numcnnlayers) * self.cnn_outchannels
         self.linear = nn.Linear(hszlin, self.hidden_size)
-
+        self.relu = nn.ReLU()
         #self.batchnorm_0 = nn.BatchNorm1d(enc_rnn_size, affine=True) # is this needed?
         
         # trf part of the encoder:
@@ -410,11 +406,7 @@ class AudioEncoderTrfSpecAugment(EncoderBase):
             opt.n_stacked_mels,
             opt.heads,
             opt.transformer_ff,
-            opt.max_relative_positions,
-            opt.n_freq_masks,
-            opt.n_time_masks,
-            opt.w_freq_masks,
-            opt.w_time_masks)
+            opt.max_relative_positions)
     
 
 
@@ -464,45 +456,6 @@ class AudioEncoderTrfSpecAugment(EncoderBase):
         #return enc_final, memory_bank,               lengths
         return state, out.transpose(0, 1).contiguous(), orig_lengths.new_tensor(lengths)
 
-        
-
-    # CNNout 
-    def cnnforward(self, input, lengths=None, hidden=None):
-        """See :class:`onmt.modules.EncoderBase.forward()`"""
-        import ipdb; ipdb.set_trace()
-        self._check_args(input, lengths, hidden)
-
-        emb = self.embeddings(input)                             #[src_len, bsz, emb_dim]
-        emb = emb.transpose(0, 1).contiguous()                   #[bsz, src_len, emb_dim]
-        emb_reshape = emb.view(emb.size(0) * emb.size(1), -1)    #[(bsz*src_len), emb_dim]
-        emb_remap = self.linear(emb_reshape)                     #[(bsz*src_len), emb_dim]
-        emb_remap = emb_remap.view(emb.size(0), emb.size(1), -1) #[bsz, src_len, emb_dim]
-        emb_remap = shape_transform(emb_remap)                   #[bsz, emb_dim, src_len, 1]
-        out = self.cnn(emb_remap)                                #[bsz, emb_dim, src_len, 1]
-
-        return emb_remap.squeeze(3).transpose(0, 1).contiguous(), \
-            out.squeeze(3).transpose(0, 1).contiguous(), lengths    #[emb_dim,bsz,src_len],[emb_dim,bsz,src_len], [bsz]
-
-    # TRF:
-    def trfforward(self, src, lengths=None):
-        """See :func:`EncoderBase.forward()`"""
-        import ipdb; ipdb.set_trace()
-        self._check_args(src, lengths)
-
-        emb = self.embeddings(src) # embeddings_layer: [vocabsz] -> [rnn_size]
-                                   # dim(emb) = [src_len, bsz, emb_dim]
-
-        out = emb.transpose(0, 1).contiguous() # [bsz, src_len, emb_dim]
-        words = src[:, :, 0].transpose(0, 1)
-        w_batch, w_len = words.size()
-        padding_idx = self.embeddings.word_padding_idx
-        mask = words.data.eq(padding_idx).unsqueeze(1)  # [B, 1, T]
-        # Run the forward pass of every layer of the tranformer.
-        for layer in self.transformer:
-            out = layer(out, mask)
-        out = self.layer_norm(out)
-
-        return emb, out.transpose(0, 1).contiguous(), lengths
 
 
 
