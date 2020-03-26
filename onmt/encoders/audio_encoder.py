@@ -330,7 +330,7 @@ class AudioEncoderTrfv1(EncoderBase):
             self.embeddings, self.specaugment = embeddings
         else:
             self.embeddings = embeddings
-            self.specaugment = lambda x: x # do nothing
+            self.specaugment = nn.Identity() # do nothing
         
         # cnn part of the encoder:
         self.enc_layers = enc_layers
