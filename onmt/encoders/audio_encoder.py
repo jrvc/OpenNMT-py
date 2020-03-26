@@ -155,6 +155,7 @@ class AudioEncoder(EncoderBase):
 from onmt.modules import MultiHeadedAttention
 from onmt.encoders.transformer import TransformerEncoderLayer
 
+
 class AudioEncoderTrf(EncoderBase):
     """A 2xCNN -> LxTrf encoder for audio input.
 
@@ -175,7 +176,7 @@ class AudioEncoderTrf(EncoderBase):
             self.embeddings, self.specaugment = embeddings
         else:
             self.embeddings = embeddings
-            self.specaugment = lambda x: x # do nothing
+            self.specaugment = nn.Identity() # do nothing
 
         # cnn part of the encoder:
         self.enc_layers = enc_layers

@@ -653,23 +653,6 @@ class MultipleDatasetIterator(object):
 
 
 
-
-def collect_filtered(iterable_dataset, treshold, filtered_examples):
-    """
-    Collects filtered elements in ``filtered``.
-
-    Args:
-        
-        iterable_dataset (iterable): dataset to filter
-        filtered (list): list to store filtered elements
-    """
-    for ex in iterable_dataset:
-        if el.src.shape[1] > treshold:
-            yield ex
-        else:
-            filtered_examples.append(ex)
-
-
 class DatasetLazyIter(object):
     """Yield data from sharded dataset files.
 
@@ -721,10 +704,6 @@ class DatasetLazyIter(object):
                 if n_tr > 0:
                     logger.info('Truncated %d examples to size %d' % (n_tr, self.truncate_audio))
             if self.drop_audioafter:
-                #import ipdb; ipdb.set_trace()
-                #filtered_examples = []
-                #cur_dataset = collect_filtered(cur_dataset, self.drop_audioafter, filtered_examples)
-
                 n_tr=0
                 for i,example in enumerate(cur_dataset.examples):
                     if example.src.shape[1] > self.drop_audioafter:
