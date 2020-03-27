@@ -22,6 +22,7 @@ from onmt.utils.logging import logger
 #from onmt.utils.loss import build_loss_compute_generator
 from onmt.utils.loss import build_loss_from_generator_and_vocab
 from collections import OrderedDict
+import numpy as np
 
 def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs,  model_saver=None):
     """
@@ -78,6 +79,7 @@ def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs, 
     dropout_steps = opt.dropout_steps
     activate_extra_loss = opt.activate_extra_loss
     attention_heads = opt.attention_heads
+    batches_info = { tuple(opt.src_tgt[i].split('-')):[opt.batch_size[i],opt.batch_type[i]]  for i in range(len(opt.src_tgt))}
     if device_id >= 0:
         gpu_rank = opt.gpu_ranks[device_id]
     else:
@@ -103,7 +105,8 @@ def build_trainer(opt, device_id, model, fields, optim, generators, tgt_vocabs, 
                            dropout=dropout,
                            dropout_steps=dropout_steps,
                            activate_extra_loss=activate_extra_loss,
-                           attention_heads=attention_heads)
+                           attention_heads=attention_heads,
+                           batches_info=batches_info)
     return trainer
 
 
@@ -141,7 +144,7 @@ class Trainer(object):
                  gpu_verbose_level=0, report_manager=None, model_saver=None,
                  average_decay=0, average_every=1, model_dtype='fp32',
                  earlystopper=None, dropout=[0.3], dropout_steps=[0],
-                 activate_extra_loss=False, attention_heads=0):
+                 activate_extra_loss=False, attention_heads=0,batches_info=None):
         # Basic attributes.
         self.model = model
         self.train_losses = train_losses
@@ -167,6 +170,7 @@ class Trainer(object):
         self.dropout_steps = dropout_steps
         self.activate_extra_loss=activate_extra_loss
         self.attention_heads=attention_heads
+        self.batches_info=batches_info
 
         for i in range(len(self.accum_count_l)):
             assert self.accum_count_l[i] > 0
@@ -267,9 +271,18 @@ class Trainer(object):
             train_iters = {k:
                 (enumerate(self._accum_batches((b for b in f()), k[1])))
                 for k, f in train_iter_fcts.items()}
-
+        
+        langpairweights=[[],[]]
+        for k,x in self.batches_info.items():
+            langpairweights[0].append(k)
+            langpairweights[1].append(1/x[0] if x[1]=='sents' else 24/x[0]) # assum. avg sentlength of 24(token_bsz=4096 => sent_bsz=170)
+        #normalize weights
+        langpairweights[1] = np.array(langpairweights[1])/sum(langpairweights[1])
+        self.batches_info = {langpairweights[0][i]:round(langpairweights[1][i],2) for i in range(len(self.batches_info))}
+        logger.info('Training loop will schedule -src_tgt pairs with weights given by: %s', self.batches_info)
         while True:
-            src_lang, tgt_lang = random.choice(list(train_iters.keys()))
+            #src_lang, tgt_lang = random.choice(list(train_iters.keys()))
+            src_lang, tgt_lang = random.choices(langpairweights[0],weights=list(langpairweights[1]))[0]
             train_enum = train_iters[(src_lang, tgt_lang)]
             #enum = enumerate(self._accum_batches(train_iter, tgt_lang))
 
