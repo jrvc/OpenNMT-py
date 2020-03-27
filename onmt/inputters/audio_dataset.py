@@ -106,8 +106,10 @@ class AudioDataReader(DataReaderBase):
             std = mel_fbanks.std()
             mel_fbanks.add_(-mean)
             mel_fbanks.div_(std)
-        if self.n_stacked_mels > 1:
-            mel_fbanks = stack_mel_filters(mel_fbanks, self.n_mels, self.n_stacked_mels)
+
+        #DONT STACK DURING PREPROCESSING.
+        #if self.n_stacked_mels > 1:
+        #    mel_fbanks = stack_mel_filters(mel_fbanks, self.n_mels, self.n_stacked_mels)
 
         return mel_fbanks
 

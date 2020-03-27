@@ -655,7 +655,8 @@ class Translator(object):
                         src, memory_bank, enc_states)
         else:
             if type(self.model.decoders[self.model.decoder_ids[self.tgt_lang]]) is TransformerDecoder:
-                if isinstance(self.model.encoders[self.model.encoder_ids[self.src_lang]], (onmt.encoders.audio_encoder.AudioEncoder,onmt.encoders.audio_encoder.AudioEncoderTrf)):
+                if isinstance(self.model.encoders[self.model.encoder_ids[self.src_lang]],
+                              (onmt.encoders.audio_encoder.AudioEncoder,onmt.encoders.audio_encoder.AudioEncoderTrf,onmt.encoders.audio_encoder.AudioEncoderTrfv1)):
                     #src4init=memory_bank
                     self.model.decoders[self.model.decoder_ids[self.tgt_lang]].init_state(
                         memory_bank, memory_bank, enc_states)

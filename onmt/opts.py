@@ -60,7 +60,7 @@ def model_opts(parser):
     # Encoder-Decoder Options
     group = parser.add_argument_group('Model- Encoder-Decoder')
     group.add('--model_type', '-model_type', nargs='+', type=str, default='text',
-              choices=['text', 'img', 'audio', 'audiotrf'],
+              choices=['text', 'img', 'audio', 'audiotrf', 'audiotrfv1'],
               help="Type of source model to use. Allows "
                    "the system to incorporate non-text inputs. "
                    "Options are [text|img|audio].")
@@ -119,9 +119,10 @@ def model_opts(parser):
               choices=['LSTM', 'GRU', 'SRU'],
               action=CheckSRU,
               help="The gate type to use in the RNNs")
+
     # group.add('--residual', '-residual',   action="store_true",
     #                     help="Add residual connections between RNN layers.")
-
+    
     group.add('--brnn', '-brnn', action=DeprecateAction,
               help="Deprecated, use `encoder_type`.")
 
@@ -129,6 +130,17 @@ def model_opts(parser):
               choices=['source', 'target', 'both'],
               help="Type of context gate to use. "
                    "Do not select for no context gate.")
+    
+    # audio encoder options
+    group.add('--use_spec_augment', '-use_spec_augment',
+            action='store_true', help="""Use spec augment layer during training on audio encoder""")
+    group.add('--truncate_audiofeats', '-truncate_audiofeats',
+              type=int, default=None,
+              help="Truncate audio source sequence length at training/testing time.")
+    group.add('--drop_audioafter', '-drop_audioafter',
+              type=int, default=None,
+              help="Drop audio utterances which length surpasses this treshold at training/testing time.")
+
 
     # Attention options
     group = parser.add_argument_group('Model- Attention')
@@ -301,16 +313,6 @@ def preprocess_opts(parser):
     group.add('--n_stacked_mels', '-n_stacked_mels', type=int, default=1,
             help="Number Mel-scale filterbanks to stack"
                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
-    group.add('--n_freq_masks', '-n_freq_masks', type=int, default=2,
-            help="Number of frequency masks to apply to input."
-                 "The audio encoder will mask n frequency bands")
-    group.add('--w_freq_masks', '-w_freq_masks', type=int, default=20,
-            help="The max width of the frequency masks")
-    group.add('--n_time_masks', '-n_time_masks', type=int, default=2,
-            help="Number of time masks to apply to input."
-                 "The audio encoder will mask n segments")
-    group.add('--w_time_masks', '-w_time_masks', type=int, default=50,
-            help="The max width of the frequency masks")
     # Option most relevant to image input
     group.add('--image_channel_size', '-image_channel_size',
               type=int, default=3,
@@ -564,8 +566,18 @@ def train_opts(parser):
             help="Number Mel-scale filterbanks extracted during prerpocessing"
                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
     group.add('--n_stacked_mels', '-n_stacked_mels', type=int, default=1,
-            help="Number Mel-scale filterbanks stacked during preprocessing"
-                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
+            help="Number Mel-scale filterbanks to stack"
+                 "The AudioEncoder will have as input n_mels*n_stacked_mels")
+    group.add('--n_freq_masks', '-n_freq_masks', type=int, default=2,
+            help="Number of frequency masks to apply to input."
+                 "The audio encoder will mask n frequency bands")
+    group.add('--w_freq_masks', '-w_freq_masks', type=int, default=20,
+            help="The max width of the frequency masks")
+    group.add('--n_time_masks', '-n_time_masks', type=int, default=2,
+            help="Number of time masks to apply to input."
+                 "The audio encoder will mask n segments")
+    group.add('--w_time_masks', '-w_time_masks', type=int, default=50,
+            help="The max width of the frequency masks")
     # Option most relevant to image input
     group.add('--image_channel_size', '-image_channel_size',
               type=int, default=3, choices=[3, 1],
@@ -746,8 +758,18 @@ def translate_opts(parser):
             help="Number Mel-scale filterbanks extracted during prerpocessing"
                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
     group.add('--n_stacked_mels', '-n_stacked_mels', type=int, default=1,
-            help="Number Mel-scale filterbanks stacked during preprocessing"
-                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
+            help="Number Mel-scale filterbanks to stack"
+                 "The AudioEncoder will have as input n_mels*n_stacked_mels")
+    group.add('--n_freq_masks', '-n_freq_masks', type=int, default=2,
+            help="Number of frequency masks to apply to input."
+                 "The audio encoder will mask n frequency bands")
+    group.add('--w_freq_masks', '-w_freq_masks', type=int, default=20,
+            help="The max width of the frequency masks")
+    group.add('--n_time_masks', '-n_time_masks', type=int, default=2,
+            help="Number of time masks to apply to input."
+                 "The audio encoder will mask n segments")
+    group.add('--w_time_masks', '-w_time_masks', type=int, default=50,
+            help="The max width of the frequency masks")
     # Option most relevant to image input
     group.add('--image_channel_size', '-image_channel_size',
               type=int, default=3, choices=[3, 1],
