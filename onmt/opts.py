@@ -562,10 +562,10 @@ def train_opts(parser):
               help="Sample rate.")
     group.add('--window_size', '-window_size', type=float, default=.02,
               help="Window size for spectrogram in seconds.")
-    group.add('--n_mels', '-n_mels', type=int, default=80,
+    group.add('--n_mels', '-n_mels', nargs='+', type=int, default=80,
             help="Number Mel-scale filterbanks extracted during prerpocessing"
                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
-    group.add('--n_stacked_mels', '-n_stacked_mels', type=int, default=1,
+    group.add('--n_stacked_mels', '-n_stacked_mels', nargs='+', type=int, default=1,
             help="Number Mel-scale filterbanks to stack"
                  "The AudioEncoder will have as input n_mels*n_stacked_mels")
     group.add('--n_freq_masks', '-n_freq_masks', type=int, default=2,

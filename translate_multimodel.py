@@ -14,6 +14,6 @@ if __name__ == "__main__":
 
     opt = parser.parse_args()
     logger = init_logger(opt.log_file)
-    #with launch_ipdb_on_exception():
-        #main(opt)
-    main(opt)
+    with launch_ipdb_on_exception():
+        main(opt)
+    #main(opt)

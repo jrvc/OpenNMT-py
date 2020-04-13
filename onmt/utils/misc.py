@@ -17,6 +17,23 @@ def split_corpus(path, shard_size):
                     break
                 yield shard
 
+def split_h5file(path, shard_size):
+    import h5py as h5
+    #import ipdb; ipdb.set_trace()
+    f= h5.File(path, "r")
+    setlen=len(f)
+    s_idx = range(0, setlen, max([shard_size,1]))
+    f.close()
+    if shard_size <= 0:
+        f= h5.File(path, "r")
+        yield [f.get(str(i)) for i in range(setlen)]
+    else:
+        for idx in s_idx:
+            last_idx = min([idx + shard_size, setlen])
+            f= h5.File(path, "r")
+            this_shard = [f.get(str(i)) for i in range(idx, last_idx)]
+            yield this_shard
+
 
 def aeq(*args):
     """
