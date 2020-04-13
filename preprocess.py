@@ -12,13 +12,14 @@ from functools import partial
 from collections import Counter, defaultdict
 
 from onmt.utils.logging import init_logger, logger
-from onmt.utils.misc import split_corpus
+from onmt.utils.misc import split_corpus, split_h5file
 import onmt.inputters as inputters
 import onmt.opts as opts
 from onmt.utils.parse import ArgumentParser
 from onmt.inputters.inputter import _build_fields_vocab,\
                                     _load_vocab
 
+from ipdb import launch_ipdb_on_exception
 
 def check_existing_pt_files(opt):
     """ Check if there are existing .pt files to avoid overwriting them """
@@ -47,7 +48,7 @@ def build_save_dataset(corpus_type, fields, src_reader, tgt_reader, opt):
     for src, tgt, maybe_id in zip(srcs, tgts, ids):
         logger.info("Reading source and target files: %s %s." % (src, tgt))
 
-        src_shards = split_corpus(src, opt.shard_size)
+        src_shards = split_corpus(src, opt.shard_size) if opt.data_type != 'h5' else split_h5file(src,opt.shard_size)
         tgt_shards = split_corpus(tgt, opt.shard_size)
         shard_pairs = zip(src_shards, tgt_shards)
         dataset_paths = []
@@ -210,4 +211,5 @@ if __name__ == "__main__":
     parser = _get_parser()
 
     opt = parser.parse_args()
-    main(opt)
+    with launch_ipdb_on_exception():
+        main(opt)

@@ -15,6 +15,7 @@ from torchtext.data.utils import RandomShuffler
 
 from onmt.inputters.text_dataset import text_fields, TextMultiField
 from onmt.inputters.image_dataset import image_fields
+from onmt.inputters.h5_dataset import h5_fields
 from onmt.inputters.audio_dataset import *
 
 
@@ -95,7 +96,7 @@ def get_fields(
         the dataset example attributes.
     """
 
-    assert src_data_type in ['text', 'img', 'audio'], \
+    assert src_data_type in ['text', 'img', 'audio', 'h5'], \
         "Data type not implemented"
     assert not dynamic_dict or src_data_type == 'text', \
         'it is not possible to use dynamic_dict with non-text input'
@@ -103,7 +104,8 @@ def get_fields(
 
     fields_getters = {"text": text_fields,
                       "img": image_fields,
-                      "audio": audio_fields}
+                      "audio": audio_fields,
+                      "h5": h5_fields}
 
     src_field_kwargs = {"n_feats": n_src_feats,
                         "include_lengths": True,

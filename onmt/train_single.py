@@ -109,16 +109,17 @@ def main(opt, device_id):
         src_tgt_lang = opt.src_tgt[index]
         data_path = opt.data[index]
         local_enc_dec_opts = AttrDict({key:model_opt.__dict__[key] for key in model_opt.__dict__.keys()})
-        local_enc_dec_opts.model_type = update_to_local_attr(model_opt.model_type, index)
-        #local_enc_dec_opts.audio_enc_pooling = model_opt.audio_enc_pooling[index] 
+        local_enc_dec_opts.model_type        = update_to_local_attr(model_opt.model_type, index)
         local_enc_dec_opts.audio_enc_pooling = update_to_local_attr(model_opt.audio_enc_pooling, index)
-        local_enc_dec_opts.enc_layers = update_to_local_attr(model_opt.enc_layers, index) 
-        local_enc_dec_opts.dec_layers = update_to_local_attr(model_opt.dec_layers, index)
-        local_enc_dec_opts.rnn_type   = update_to_local_attr(model_opt.rnn_type, index)
-        local_enc_dec_opts.encoder_type = update_to_local_attr(model_opt.encoder_type, index)
-        local_enc_dec_opts.batch_size = update_to_local_attr(model_opt.batch_size, index)
-        local_enc_dec_opts.batch_type = update_to_local_attr(model_opt.batch_type, index)
-        local_enc_dec_opts.normalization = update_to_local_attr(model_opt.normalization, index)
+        local_enc_dec_opts.n_mels            = update_to_local_attr(model_opt.n_mels, index)
+        local_enc_dec_opts.n_stacked_mels    = update_to_local_attr(model_opt.n_stacked_mels, index)
+        local_enc_dec_opts.enc_layers        = update_to_local_attr(model_opt.enc_layers, index) 
+        local_enc_dec_opts.dec_layers        = update_to_local_attr(model_opt.dec_layers, index)
+        local_enc_dec_opts.rnn_type          = update_to_local_attr(model_opt.rnn_type, index)
+        local_enc_dec_opts.encoder_type      = update_to_local_attr(model_opt.encoder_type, index)
+        local_enc_dec_opts.batch_size        = update_to_local_attr(model_opt.batch_size, index)
+        local_enc_dec_opts.batch_type        = update_to_local_attr(model_opt.batch_type, index)
+        local_enc_dec_opts.normalization     = update_to_local_attr(model_opt.normalization, index)
         #local_enc_dec_opts.dec_rnn_size = model_opt.dec_rnn_size[index]
 
 
