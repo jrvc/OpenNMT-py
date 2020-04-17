@@ -693,7 +693,7 @@ class DatasetLazyIter(object):
                     (path, len(cur_dataset)))
         cur_dataset.fields = self.fields
         # Stack mel_fbanks for audio files, with n_stacked_mels option
-        if isinstance(self.fields['src'],AudioSeqField):
+        if isinstance(self.fields['src'], (AudioSeqField,h5FeatsField)):
             if self.n_stacked_mels>1:
                 for i,example in enumerate(cur_dataset.examples):
                     cur_dataset.examples[i].src = stack_mel_filters(example.src,self.n_mels,self.n_stacked_mels) # function in inputters.audio_dataset.py
