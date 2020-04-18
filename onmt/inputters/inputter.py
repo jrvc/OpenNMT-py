@@ -15,7 +15,7 @@ from torchtext.data.utils import RandomShuffler
 
 from onmt.inputters.text_dataset import text_fields, TextMultiField
 from onmt.inputters.image_dataset import image_fields
-from onmt.inputters.h5_dataset import h5_fields
+from onmt.inputters.h5_dataset import h5_fields, h5FeatsField
 from onmt.inputters.audio_dataset import *
 
 
