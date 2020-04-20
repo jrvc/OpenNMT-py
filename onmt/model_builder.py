@@ -9,6 +9,7 @@ from torch.nn.init import xavier_uniform_
 
 import onmt.inputters as inputters
 from   onmt.inputters.audio_dataset import AudioSeqField
+from   onmt.inputters.h5_dataset import h5FeatsField
 import onmt.modules
 from onmt.encoders import str2enc
 
@@ -93,8 +94,9 @@ def load_test_multitask_model(opt, model_path=None):
         )
     else:
         fields = vocab
-    
-    if opt.data_type == 'audio' and not (isinstance(checkpoint.get('vocab')[src_tgtpair]['src'], AudioSeqField)):
+   
+    #  this resolves compatibility issues (modesl for iwslt20) - to be removed after deadline, together with importing the fields classes
+    if opt.data_type == 'audio' and not (isinstance(checkpoint.get('vocab')[src_tgtpair]['src'], (AudioSeqField, h5FeatsField))):
         vocab_path = "/home/vazquezj/Documents/iwslt2019/_ready_to_train/onmt_ready/ENaudio_DEtext/data"
         fields = torch.load(vocab_path + '.vocab.pt')
 
