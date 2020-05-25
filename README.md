@@ -1,4 +1,5 @@
-# Hands-on example
+# HelsinkiNLP fork of OpenNMT-py for the IWSLT2020 offline speech translation task
+
 
 The following scripts require subword-nmt and sacrebleu.
 ```bash
