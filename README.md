@@ -1,7 +1,113 @@
 # HelsinkiNLP fork of OpenNMT-py for the IWSLT2020 offline speech translation task
 
+In this repo you will find the scripts and tools we used for training the multimodal system we submited to the shared task.  The architecture we use in our experiments is portrayed below and is described on detail in [Vázquez et al., 2020](https://www.mitpressjournals.org/doi/abs/10.1162/COLI_a_00377). 
 
-The following scripts require subword-nmt and sacrebleu.
+[fig1]: https://github.com/Helsinki-NLP/OpenNMT-py/blob/iwslt2020/docs/arc.png "compound attention Figure 1"
+
+![alt text][fig1]
+
+To replicate the experiments, you will first need to dowload + clean + cut to sentence-like segments and set the resampling of the audio files to 16000 for each of the allowed datasets (you can get them from [here](http://www.iwslt.org/doku.php?id=offline_speech_translation))
+
+Notice the scripts we use are modifications from the [OpenNMT-py scripts for speech-to-text tools](https://opennmt.net/OpenNMT-py/speech2text.html), so their documentation is also valid for these following parts.
+
+You can run the preprocessing procedure with the script (you need to correct the paths there): 
+``` 
+source ONMTpreprocall.sh all.enen
+source ONMTpreprocall.sh all.ende
+source ONMTpreprocall.sh text
+source ONMTpreprocall.sh text.char
+```
+The default values in the preprocessing script are the used ones, unless stated otherwise in the paper. (use a proper shard-size for your CUDA device not to crash due to memory issues)
+
+After that is done, train your system. Here is one example on how to call a multimodal system:
+```
+trainoption='trf_ENaENt2DEtENt.3enc.3dec.1skmel.100ah.drop_h5all'
+
+echo "Training with $trainoption configuration:"
+
+echo "          EN_a  -> DE_t"
+echo "          EN_t  ----^  "
+echo "          EN_a  -> EN_t"
+echo "          DE_t  ----^  "
+DATAPATH=/path/to/ONMTpreprocessed/data/
+
+python train.py -data ${DATAPATH}/h5/all_partial/ENaudio_DEtext/data \
+                      ${DATAPATH}/all/ENtext_DEtext/data     \
+                      ${DATAPATH}/h5/all_partial/ENaudio_ENtext/data \
+                      ${DATAPATH}/all/DEtext_ENtext/data \
+                -src_tgt           en_a-de_t      en_t-de_t     en_a-en_t     de_t-en_t   \
+                -model_type        audiotrf       text          audiotrf      text        \
+                -audio_enc_pooling 1              1             1             1           \
+                -batch_size        32             4096          32            4096        \
+                -accum_count       8 \
+                -batch_type        sents          tokens        sents         tokens      \
+                -normalization     sents          tokens        sents         tokens      \
+                -decoder_type      transformer    transformer   transformer   transformer \
+                -cnn_kernel_width 3            \
+                -save_model /scratch/project_2000945/iwslt19/models/audiotrf/$trainoption \
+                -attention_heads 100            \
+                -use_attention_bridge          \
+                -init_decoder attention_matrix \
+                -n_mels         40  \
+                -n_stacked_mels  1  \
+                -drop_audioafter 5500 \
+        -enc_layers 3 -dec_layers 3 -rnn_size 512 -word_vec_size 512 -transformer_ff 2048 -heads 8  \
+        -encoder_type transformer  -position_encoding \
+        -max_generator_batches 2 -dropout 0.1 \
+        -optim adam -adam_beta2 0.998 -decay_method noam -warmup_steps 8000 -learning_rate 2 \
+        -max_grad_norm 0 -param_init 0  -param_init_glorot \
+        -label_smoothing 0.1 \
+                -report_every            250  \
+                -train_steps          350000  \
+                -valid_steps           5000  \
+                -save_checkpoint_steps 5000  \
+                -keep_checkpoint           20  \
+                -world_size   1  \
+                -gpu_ranks    0  \
+                -save_config /scratch/project_2000945/iwslt19/models/audiotrf/train-trf_$trainoption.config
+
+python train.py -config /scratch/project_2000945/iwslt19/models/audiotrf/train-trf_$trainoption.config
+```
+Finally, translate, using out modified procedure for systems trained in a multitask setting. For example,
+```
+MODELNAME='path/to/model_checkpoint.pt'
+OUTNAME='path/where/to/save/output.txt'
+path_to_mustc='you/know/what/to/do/here'
+python translate_multimodel.py -data_type audio \
+                               -src_lang  en_a  -tgt_lang  de_t \
+                               -model ${MODELNAME} \
+                                         -src_dir /scratch/project_2000945/iwslt19/MUSTC/en-de/data/mustc-split/ \
+                                         -src ${path_to_mustc}/MUSTC/en-de/data/mustc-split/test_en-de.txt \
+                                         -output ${OUTNAME} \
+                                         -use_attention_bridge \
+                                         -gpu 0 \
+                                         -n_stacked_mels 1 \
+                                         -n_mels 80 \
+                                         -verbose
+```
+
+If you use this code please cite:
+```
+@article{doi:10.1162/coli\_a\_00377,
+author = {Vázquez, Raúl and Raganato, Alessandro and Creutz, Mathias and Tiedemann, Jörg},
+title = {A Systematic Study of Inner-Attention-Based Sentence Representations                     in Multilingual Neural Machine Translation},
+journal = {Computational Linguistics},
+volume = {0},
+number = {0},
+pages = {1-38},
+year = {0},
+doi = {10.1162/coli\_a\_00377},
+
+URL = { 
+        https://doi.org/10.1162/coli_a_00377
+    
+}
+}
+```
+And  also [cite OpenNMT-py](#headCITATION), naturally :)
+
+### The following is part of a small tutorial on how to use this repo:
+The scripts require subword-nmt and sacrebleu.
 ```bash
 pip install subword-nmt
 pip install sacrebleu
@@ -186,7 +292,7 @@ and more !
 OpentNMT-py belongs to the OpenNMT project along with OpenNMT-Lua and OpenNMT-tf.
 
 ## Citation
-
+<a name="headCITATION"></a>
 [OpenNMT: Neural Machine Translation Toolkit](https://arxiv.org/pdf/1805.11462)
 
 [OpenNMT technical report](https://doi.org/10.18653/v1/P17-4012)
