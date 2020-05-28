@@ -6,7 +6,7 @@ In this repo you will find the scripts and tools we used for training the multim
 
 ![alt text][fig1]
 
-To replicate the experiments, you will first need to dowload + clean + cut to sentence-like segments and set the resampling of the audio files to 16000 for each of the allowed datasets (you can get them from [here](http://www.iwslt.org/doku.php?id=offline_speech_translation))
+To replicate the experiments, you will first need to dowload + clean + cut to sentence-like segments +convert to .wav + set the resampling of the audio files to 16,000 for each of the allowed datasets (you can get them from [here](http://www.iwslt.org/doku.php?id=offline_speech_translation)). Or you can modify the paths ahead to use your own audio files to use the system (in `.wav` format and with the same sampling size)
 
 Notice the scripts we use are modifications from the [OpenNMT-py scripts for speech-to-text tools](https://opennmt.net/OpenNMT-py/speech2text.html), so their documentation is also valid for these following parts.
 
