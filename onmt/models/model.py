@@ -61,7 +61,9 @@ class NMTModel(BaseModel):
         dec_in = tgt[:-1]  # exclude last target from inputs
 
         enc_state, memory_bank, lengths = self.encoder(src, lengths)
-
+        if isinstance(lengths, tuple):
+            lengths,src = lengths
+            
         if not bptt:
             self.decoder.init_state(src, memory_bank, enc_state)
         dec_out, attns = self.decoder(dec_in, memory_bank,
