@@ -82,10 +82,11 @@ class BertEncoder(EncoderBase):
         
         src_texts = self.recover_sents(src, lengths)
 
-        encoded_sentences = self.bert_tokenizer(src_texts, padding=True, return_tensors='pt')
+        encoded_sentences = self.bert_tokenizer(src_texts, padding=True, return_tensors='pt').to(src.device)
 
         new_lengths = encoded_sentences['attention_mask'].sum(axis=1)
         new_src = encoded_sentences['input_ids'].transpose(0,1).unsqueeze(dim=2)
+        
         encoder_outputs = self.bert(encoded_sentences['input_ids'], 
                                 attention_mask=encoded_sentences['attention_mask'],
                                 return_dict=self.return_dict, 
