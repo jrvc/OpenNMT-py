@@ -769,6 +769,9 @@ class Translator(Inference):
         enc_states, memory_bank, src_lengths = self.model.encoder(
             src, src_lengths
         )
+        if isinstance(src_lengths, tuple):
+            src_lengths, src = src_lengths
+            
         if src_lengths is None:
             assert not isinstance(
                 memory_bank, tuple
