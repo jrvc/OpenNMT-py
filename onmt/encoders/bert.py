@@ -9,6 +9,7 @@ from onmt.modules import MultiHeadedAttention
 from onmt.modules.position_ffn import PositionwiseFeedForward
 from onmt.modules.position_ffn import ActivationFunction
 from onmt.utils.misc import sequence_mask
+from onmt.utils.logging import logger
 
 from transformers import (
     BertConfig, 
@@ -43,6 +44,7 @@ class BertEncoder(EncoderBase):
         outdim=512, 
         output_hidden_states=False,
         return_dict=True,
+        freeze_bert=False,
     ):
         super(BertEncoder, self).__init__()
 
@@ -58,6 +60,11 @@ class BertEncoder(EncoderBase):
         self.linear = nn.Linear(self.bert_encdim, outdim)
         self.vocab = vocab
 
+        if freeze_bert:
+            logger.info(f'ATTENTION: BERT parameters are not to be optimized during training.')
+            for param in self.bert.parameters():
+                param.requires_grad = False
+
     @classmethod
     def from_opt(cls, opt, embeddings):
         """Alternate constructor."""
@@ -67,6 +74,7 @@ class BertEncoder(EncoderBase):
             outdim=opt.rnn_size,  
             output_hidden_states=True,
             return_dict=True,
+            freeze_bert=opt.freeze_bert,
         )
 
     def forward(self, src, lengths=None):

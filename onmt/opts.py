@@ -484,6 +484,10 @@ def _add_train_general_opts(parser):
     group.add('--freeze_word_vecs_dec', '-freeze_word_vecs_dec',
               action='store_true',
               help="Freeze word embeddings on the decoder side.")
+    # Freeze BERT
+    group.add('--freeze_bert', '-freeze_bert',
+              action='store_true',
+              help="Freeze BERT as an encoder.")
 
     # Optimization options
     group = parser.add_argument_group('Optimization- Type')
