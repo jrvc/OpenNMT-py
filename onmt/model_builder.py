@@ -116,7 +116,8 @@ def build_src_emb(model_opt, fields):
 def build_encoder_with_embeddings(model_opt, fields):
     # Build encoder.
     src_emb = build_src_emb(model_opt, fields)
-    encoder = build_encoder(model_opt, fields['src'].base_field.vocab) if model_opt.encoder_type == 'bert' else build_encoder(model_opt, src_emb)
+    encoder = build_encoder(model_opt, fields['src'].base_field.vocab) if model_opt.encoder_type == 'bert' \
+        else build_encoder(model_opt, src_emb)
     return encoder, src_emb
 
 

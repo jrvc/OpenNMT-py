@@ -278,7 +278,7 @@ def _pad_vocab_to_multiple(vocab, multiple):
 def _build_field_vocab(field, counter, size_multiple=1, **kwargs):
     # this is basically copy-pasted from torchtext.
     all_special = [
-        field.unk_token, field.pad_token, field.init_token, field.eos_token
+        field.pad_token, field.unk_token, field.init_token, field.eos_token
     ]
     all_special.extend(list(kwargs.pop('specials', [])))
     specials = list(OrderedDict.fromkeys(
