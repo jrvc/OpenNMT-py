@@ -74,7 +74,7 @@ class BertEncoder(EncoderBase):
             outdim=opt.rnn_size,  
             output_hidden_states=True,
             return_dict=True,
-            freeze_bert=opt.freeze_bert,
+            freeze_bert=opt.__dict__.get('freeze_bert', False),
         )
 
     def forward(self, src, lengths=None):
@@ -85,7 +85,7 @@ class BertEncoder(EncoderBase):
     
         '''
         runs bert and a linear projection
-        '''            
+        '''                    
         self._check_args(src, lengths)
         
         src_texts = self.recover_sents(src, lengths)
