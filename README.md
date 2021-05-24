@@ -135,10 +135,9 @@ The data consists of parallel source (`src`) and target (`tgt`) data containing 
 Validation files are used to evaluate the convergence of the training. It usually contains no more than 5k sentences.
 
 ```text
-$ head -n 3 toy-ende/src-train.txt
+$ head -n 2 toy-ende/src-train.txt
 It is not acceptable that , with the help of the national bureaucracies , Parliament &apos;s legislative prerogative should be made null and void by means of implementing provisions whose content , purpose and extent are not laid down in advance .
 Federal Master Trainer and Senior Instructor of the Italian Federation of Aerobic Fitness , Group Fitness , Postural Gym , Stretching and Pilates; from 2004 , he has been collaborating with Antiche Terme as personal Trainer and Instructor of Stretching , Pilates and Postural Gym .
-&quot; Two soldiers came up to me and told me that if I refuse to sleep with them , they will kill me . They beat me and ripped my clothes .
 ```
 
 We need to build a **YAML configuration file** to specify the data that will be used:
@@ -213,7 +212,7 @@ This configuration will run the default model, which consists of a 2-layer LSTM 
 
 Before the training process actually starts, the `*.vocab.pt` together with `*.transforms.pt` will be dumpped to `-save_data` with configurations specified in `-config` yaml file. We'll also generate transformed samples to simplify any potentially required visual inspection. The number of sample lines to dump per corpus is set with the `-n_sample` flag.
 
-For more advanded models and parameters, see [other example configurations](https://github.com/OpenNMT/OpenNMT-py/tree/master/config) or the [FAQ](FAQ).
+For more advanded models and parameters, see [other example configurations](https://github.com/OpenNMT/OpenNMT-py/tree/master/config) or the [FAQ](https://opennmt.net/OpenNMT-py/FAQ.html).
 
 ### Step 3: Translate
 

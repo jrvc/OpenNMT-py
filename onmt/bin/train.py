@@ -75,6 +75,9 @@ def _init_train(opt):
             if len(old_transf) != 0:
                 _msg += f" -{old_transf}."
             logger.warning(_msg)
+        if opt.update_vocab:
+            logger.info("Updating checkpoint vocabulary with new vocabulary")
+            fields, transforms_cls = prepare_fields_transforms(opt)
     else:
         checkpoint = None
         fields, transforms_cls = prepare_fields_transforms(opt)
@@ -136,7 +139,7 @@ def train(opt):
                 opt, fields, transforms_cls, stride=nb_gpu, offset=device_id)
             producer = mp.Process(target=batch_producer,
                                   args=(train_iter, queues[device_id],
-                                        semaphore, opt,),
+                                        semaphore, opt, device_id),
                                   daemon=True)
             producers.append(producer)
             producers[device_id].start()

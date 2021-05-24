@@ -11,7 +11,7 @@ setup(
     description='A python implementation of OpenNMT',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    version='2.0.1',
+    version='2.1.2',
     packages=find_packages(),
     project_urls={
         "Documentation": "http://opennmt.net/OpenNMT-py/",
@@ -29,7 +29,7 @@ setup(
         "flask==1.1.2",
         "waitress==1.4.4",
         "pyonmttok>=1.23,<2;platform_system=='Linux' or platform_system=='Darwin'",
-        "pyyaml==5.3.1",
+        "pyyaml==5.4",
     ],
     entry_points={
         "console_scripts": [

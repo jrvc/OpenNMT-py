@@ -50,6 +50,8 @@ class BARTNoising(object):
                  replace_length=-1, rotate_ratio=0.0, mask_length='subword',
                  random_ratio=0.0, is_joiner=False,
                  full_stop_token=DefaultTokens.SENT_FULL_STOPS):
+        if vocab is None:
+            raise ValueError("Inject BART noise requires a valid vocabulary.")
         self.vocab = vocab
 
         self.mask_tok = mask_tok
@@ -86,6 +88,12 @@ class BARTNoising(object):
         self.mask_length = mask_length
         self.poisson_lambda = poisson_lambda
 
+    @staticmethod
+    def set_random_seed(seed):
+        """Call this before use to ensure reproducibility."""
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+
     def _make_poisson(self, poisson_lambda):
         lambda_to_the_k = 1
         e_to_the_minus_lambda = math.exp(-poisson_lambda)
@@ -100,20 +108,25 @@ class BARTNoising(object):
         ps = torch.FloatTensor(ps)
         return torch.distributions.Categorical(ps)
 
-    def _is_full_stop(self, token):
-        return True if token in self.full_stop_token else False
+    def _get_sentence_borders(self, tokens):
+        """Return lengths of each sentence in the token sequence."""
+        full_stops = np.array(
+            [
+                True if token in self.full_stop_token else False
+                for token in tokens
+            ]
+        )
+        # Pretend it ends with a full stop so last span is a sentence
+        full_stops[-1] = True
+        # Tokens that are full stops, where the previous token is not
+        sentence_lens = (full_stops[1:] * ~full_stops[:-1]).nonzero()[0] + 2
+        return sentence_lens
 
     def permute_sentences(self, tokens, p=1.0):
         if len(tokens) == 1:
             return tokens
-        full_stops = np.array([self._is_full_stop(token) for token in tokens])
-        # Pretend it ends with a full stop so last span is a sentence
-        full_stops[-1] = True
-
-        # Tokens that are full stops, where the previous token is not
-        sentence_ends = (full_stops[1:] * ~full_stops[:-1]).nonzero()[0] + 2
-
-        n_sentences = sentence_ends.size
+        sentence_lens = self._get_sentence_borders(tokens)
+        n_sentences = sentence_lens.size
         if n_sentences == 1:
             return tokens
 
@@ -127,8 +140,8 @@ class BARTNoising(object):
         result = [tok for tok in tokens]
         index = 0
         for i in ordering:
-            sentence = tokens[(sentence_ends[i - 1] if i > 0 else 0):
-                              sentence_ends[i]]
+            sentence = tokens[(sentence_lens[i - 1] if i > 0 else 0):
+                              sentence_lens[i]]
             result[index:index + len(sentence)] = sentence
             index += len(sentence)
         assert len(result) == len(tokens), "Error when permute sentences."
@@ -287,9 +300,6 @@ class BARTNoising(object):
         return tokens[offset:] + tokens[0:offset]
 
     def apply(self, tokens):
-        if self.vocab is None:
-            raise ValueError("Inject BART noise requires a valid vocabulary.")
-
         if self.permute_sent_ratio > 0.0:
             tokens = self.permute_sentences(tokens, self.permute_sent_ratio)
 
@@ -332,8 +342,7 @@ class BARTNoiseTransform(Transform):
 
     def _set_seed(self, seed):
         """set seed to ensure reproducibility."""
-        np.random.seed(seed)
-        torch.manual_seed(seed)
+        BARTNoising.set_random_seed(seed)
 
     @classmethod
     def add_options(cls, parser):
@@ -366,12 +375,13 @@ class BARTNoiseTransform(Transform):
                   help="When masking N tokens, replace with 0, 1, "
                        "or N tokens. (use -1 for N)")
 
+    @classmethod
+    def require_vocab(cls):
+        """Override this method to inform it need vocab to start."""
+        return True
+
     def warm_up(self, vocabs):
-        super().warm_up(None)
-        if vocabs is None:
-            self.bart_noise = None
-            return
-        self.vocabs = vocabs
+        super().warm_up(vocabs)
 
         subword_type = self.opts.src_subword_type
         if self.opts.mask_length == 'subword':
@@ -396,7 +406,7 @@ class BARTNoiseTransform(Transform):
 
     def apply(self, example, is_train=False, stats=None, **kwargs):
         """Apply BART noise to src side tokens."""
-        if is_train and self.vocabs is not None:
+        if is_train:
             src = self.bart_noise.apply(example['src'])
             example['src'] = src
         return example
